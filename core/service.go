@@ -45,6 +45,11 @@ func NewService(opts Options) (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	var ver string
+	dbx.Raw("select sqlite_version()").Scan(&ver)
+	util.Infof("Starting sqlite %s", ver)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Service{
 		Database: dbx,

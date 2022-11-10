@@ -60,6 +60,7 @@ func ParseArguments() core.Options {
 	}
 
 	flag.Usage = help
+	flag.StringVar(&defaults.Hostname, "h", "localhost.dev", "Instance hostname")
 	flag.StringVar(&defaults.Binding, "b", "localhost:9494", "Network binding")
 	flag.StringVar(&defaults.LogLevel, "l", "info", "Logging level (error, warn, info, debug)")
 
@@ -81,7 +82,7 @@ func help() {
 	log.Println("-b [binding]\tNetwork binding (use :9494 to listen on all interfaces), default: localhost:9494")
 	log.Println("-l [level]\tSet logging level (error, warn, info, debug), default: info")
 	log.Println("-v\t\tShow version and license information")
-	log.Println("-h\t\tThis help screen")
+	log.Println("--help\t\tThis help screen")
 }
 
 var (
