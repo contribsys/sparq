@@ -90,7 +90,7 @@ func bootRuntime(t *testing.T, name string, fn func(*WebUI, *faktory.Server, *te
 
 	sock := fmt.Sprintf("%s/redis.sock", dir)
 
-	b := "localhost:4343"
+	b := "localhost:9494"
 	s, err := faktory.NewServer(faktory.Options{
 		RedisSock:        sock,
 		StorageDirectory: dir,

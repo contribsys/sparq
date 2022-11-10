@@ -52,7 +52,7 @@ func ParseArguments() runtime.Options {
 	}
 
 	defaults := runtime.Options{
-		Binding:          "localhost:4343",
+		Binding:          "localhost:9494",
 		Hostname:         host,
 		LogLevel:         "info",
 		ConfigDirectory:  ".",
@@ -60,7 +60,7 @@ func ParseArguments() runtime.Options {
 	}
 
 	flag.Usage = help
-	flag.StringVar(&defaults.Binding, "b", "localhost:4343", "Network binding")
+	flag.StringVar(&defaults.Binding, "b", "localhost:9494", "Network binding")
 	flag.StringVar(&defaults.LogLevel, "l", "info", "Logging level (error, warn, info, debug)")
 
 	// undocumented on purpose, we don't want people changing these if possible
@@ -78,7 +78,7 @@ func ParseArguments() runtime.Options {
 
 func help() {
 	log.Println("-h [hostname]\tInstance hostname, default: localhost.dev")
-	log.Println("-b [binding]\tNetwork binding (use :4343 to listen on all interfaces), default: localhost:4343")
+	log.Println("-b [binding]\tNetwork binding (use :9494 to listen on all interfaces), default: localhost:9494")
 	log.Println("-l [level]\tSet logging level (error, warn, info, debug), default: info")
 	log.Println("-v\t\tShow version and license information")
 	log.Println("-h\t\tThis help screen")
