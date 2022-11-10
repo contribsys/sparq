@@ -84,7 +84,7 @@ func NewWeb(s *faktory.Server, binding string) *WebUI {
 	ui := &WebUI{
 		Binding:   binding,
 		Server:    s,
-		Title:     "Sparq | Admin | " + client.Name,
+		Title:     "Sparq | " + client.Name,
 		StartedAt: time.Now(),
 	}
 
@@ -111,7 +111,9 @@ func NewWeb(s *faktory.Server, binding string) *WebUI {
 	// app.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	// app.HandleFunc("/debug/pprof/trace", pprof.Trace)
 
-	ui.App = app
+	proxy := http.NewServeMux()
+	proxy.HandleFunc("/", Proxy(app))
+	ui.App = proxy
 
 	return ui
 }
@@ -134,7 +136,7 @@ func healthHandler(ui *WebUI) func(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func Proxy(ui *WebUI) http.HandlerFunc {
+func Proxy(app *http.ServeMux) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		///////
 		// Support transparent proxying with nginx's proxy_pass.
@@ -152,12 +154,11 @@ func Proxy(ui *WebUI) http.HandlerFunc {
 		   }
 		*/
 
-		prefix := r.Header.Get("X-Script-Name")
-		if prefix != "" {
-			r.RequestURI = strings.Replace(r.RequestURI, prefix, "", 1)
-			r.URL.Path = strings.Replace(r.URL.Path, prefix, "", 1)
-		}
-		ui.App.ServeHTTP(w, r)
+		prefix := "/faktory"
+		r.Header.Set("X-Script-Name", prefix)
+		r.RequestURI = strings.Replace(r.RequestURI, prefix, "", 1)
+		r.URL.Path = strings.Replace(r.URL.Path, prefix, "", 1)
+		app.ServeHTTP(w, r)
 	}
 }
 

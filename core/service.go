@@ -1,12 +1,14 @@
-package runtime
+package core
 
 import (
 	"context"
+	"fmt"
 	"net/http"
-	rt "runtime"
+	"runtime"
 	"sync"
 	"time"
 
+	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/faktory"
 	"github.com/contribsys/sparq/faktoryui"
 	"github.com/contribsys/sparq/finger"
@@ -62,7 +64,7 @@ func NewService(opts Options) (*Service, error) {
 	s.JobServer = js
 	s.FaktoryUI = faktoryui.NewWeb(js, opts.Binding)
 	s.JobRunner = jobrunner.NewJobRunner(js.Manager(), jobrunner.Options{
-		Concurrency: rt.NumCPU() * 10,
+		Concurrency: runtime.NumCPU() * 5,
 		Queues:      []string{"high", "med", "low"},
 	})
 	return s, nil
@@ -78,8 +80,11 @@ func (s *Service) Run() error {
 	// the shutdown process
 
 	root := http.NewServeMux()
+	root.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(fmt.Sprintf("Welcome to Sparq %s!", sparq.Version)))
+	})
 	root.HandleFunc("/.well-known/webfinger", finger.HttpHandler(s.Database, s.Binding))
-	root.Handle("/faktory/", http.StripPrefix("/faktory", s.FaktoryUI.App))
+	root.Handle("/faktory/", s.FaktoryUI.App)
 
 	ht := &http.Server{
 		Addr:           s.Binding,

@@ -64,7 +64,7 @@ func (s *Server) Manager() manager.Manager {
 }
 
 func (s *Server) Run(ctx context.Context) error {
-	store, err := storage.Open(s.Options.RedisSock, rt.NumCPU()*10)
+	store, err := storage.Open(s.Options.RedisSock, rt.NumCPU()*20)
 	if err != nil {
 		return fmt.Errorf("cannot open redis database: %w", err)
 	}

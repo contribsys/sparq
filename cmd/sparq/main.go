@@ -10,7 +10,7 @@ import (
 
 	futil "github.com/contribsys/faktory/util"
 	"github.com/contribsys/sparq"
-	"github.com/contribsys/sparq/runtime"
+	"github.com/contribsys/sparq/core"
 	"github.com/contribsys/sparq/util"
 )
 
@@ -29,7 +29,7 @@ func main() {
 	futil.InitLogger(opts.LogLevel)
 	util.Debugf("Options: %v", opts)
 
-	s, err := runtime.NewService(opts)
+	s, err := core.NewService(opts)
 	if err != nil {
 		util.Error("Unable to start Sparq", err)
 		return
@@ -45,13 +45,13 @@ func main() {
 	}
 }
 
-func ParseArguments() runtime.Options {
+func ParseArguments() core.Options {
 	host := os.Getenv("SPARQ_HOSTNAME")
 	if host == "" {
 		host = "localhost.dev"
 	}
 
-	defaults := runtime.Options{
+	defaults := core.Options{
 		Binding:          "localhost:9494",
 		Hostname:         host,
 		LogLevel:         "info",
@@ -89,7 +89,7 @@ var (
 	Hup  os.Signal = syscall.SIGHUP
 	Info os.Signal = syscall.SIGTTIN
 
-	SignalHandlers = map[os.Signal]func(*runtime.Service){
+	SignalHandlers = map[os.Signal]func(*core.Service){
 		Term:         exit,
 		os.Interrupt: exit,
 		// Hup:          reload,
@@ -97,7 +97,7 @@ var (
 	}
 )
 
-func HandleSignals(s *runtime.Service) {
+func HandleSignals(s *core.Service) {
 	signals := make(chan os.Signal, 1)
 	for k := range SignalHandlers {
 		signal.Notify(signals, k)
@@ -111,15 +111,11 @@ func HandleSignals(s *runtime.Service) {
 	}
 }
 
-func exit(s *runtime.Service) {
+func exit(s *core.Service) {
 	util.Infof("%s shutting down", sparq.Name)
 	s.Close()
 }
 
-func threadDump(s *runtime.Service) {
+func threadDump(s *core.Service) {
 	util.DumpProcessTrace()
-}
-
-func BuildRuntime(opts runtime.Options) (*runtime.Service, error) {
-	return runtime.NewService(opts)
 }
