@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/contribsys/faktory/client"
+	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/faktory"
 	"github.com/contribsys/sparq/util"
 )
@@ -32,7 +33,7 @@ type Runner struct {
 // are registered upon process startup.
 //
 //	mgr.Register("ImportantJob", ImportantFunc)
-func (mgr *Runner) Register(name string, fn Perform) {
+func (mgr *Runner) Register(name string, fn sparq.PerformFunc) {
 	mgr.jobHandlers[name] = func(ctx context.Context, job *client.Job) error {
 		return fn(ctx, job.Args...)
 	}
@@ -78,7 +79,7 @@ func (mgr *Runner) Terminate() {
 func NewRunner(mgr faktory.Manager) *Runner {
 	return &Runner{
 		Concurrency: 10,
-		Labels:      []string{"sparq-" + Version},
+		Labels:      []string{"sparq-" + sparq.Version},
 		Queues:      []string{"default"},
 
 		ctx:            nil,

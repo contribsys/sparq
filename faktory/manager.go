@@ -6,14 +6,11 @@ import (
 
 	"github.com/contribsys/faktory/client"
 	"github.com/contribsys/faktory/manager"
+	"github.com/contribsys/sparq"
 )
 
-type Pusher interface {
-	Push(*client.Job) error
-}
-
 type Manager interface {
-	Push(*client.Job) error
+	sparq.Pusher
 	Fetch(ctx context.Context, wid string, queues ...string) (*client.Job, error)
 
 	Fail(fail *manager.FailPayload) error

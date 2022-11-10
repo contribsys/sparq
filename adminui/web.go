@@ -1,17 +1,14 @@
-package faktoryui
+package adminui
 
 import (
 	"embed"
-	"encoding/json"
-	"io"
 	"net/http"
 
 	"strings"
 	"time"
 
-	"github.com/contribsys/faktory/client"
 	"github.com/contribsys/faktory/util"
-	"github.com/contribsys/sparq/faktory"
+	"github.com/contribsys/sparq"
 	"github.com/justinas/nosurf"
 )
 
@@ -64,8 +61,7 @@ func init() {
 }
 
 type WebUI struct {
-	Options     Options
-	Server      *faktory.Server
+	Pusher
 	App         *http.ServeMux
 	Title       string
 	ExtraCssUrl string
@@ -73,63 +69,33 @@ type WebUI struct {
 	Binding     string
 }
 
-type Options struct {
-}
-
-func NewWeb(s *faktory.Server, binding string) *WebUI {
+func NewWeb(p Pusher, binding string) *WebUI {
 	ui := &WebUI{
+		Pusher:    p,
 		Binding:   binding,
-		Server:    s,
-		Title:     "Sparq | " + client.Name,
+		Title:     sparq.Name + " | Admin",
 		StartedAt: time.Now(),
 	}
 
 	app := http.NewServeMux()
 	app.HandleFunc("/static/", staticHandler)
-	app.HandleFunc("/stats", DebugLog(ui, statsHandler))
+	app.HandleFunc("/", Log(ui, func(w http.ResponseWriter, r *http.Request) {
+		job := NewJob("atype", "high", "Bob")
+		err := ctx(r).Pusher().Push(job)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		_, _ = w.Write([]byte("Enqueued job!"))
+	}))
 
-	app.HandleFunc("/", Log(ui, GetOnly(indexHandler)))
-	app.HandleFunc("/queues", Log(ui, queuesHandler))
-	app.HandleFunc("/queues/", Log(ui, queueHandler))
-	app.HandleFunc("/retries", Log(ui, retriesHandler))
-	app.HandleFunc("/retries/", Log(ui, retryHandler))
-	app.HandleFunc("/scheduled", Log(ui, scheduledHandler))
-	app.HandleFunc("/scheduled/", Log(ui, scheduledJobHandler))
-	app.HandleFunc("/morgue", Log(ui, morgueHandler))
-	app.HandleFunc("/morgue/", Log(ui, deadHandler))
-	app.HandleFunc("/busy", Log(ui, busyHandler))
-	app.HandleFunc("/debug", Log(ui, debugHandler))
-	app.HandleFunc("/health", healthHandler(ui))
-
-	// app.HandleFunc("/debug/pprof/", pprof.Index)
-	// app.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	// app.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	// app.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-	// app.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	// app.HandleFunc("/", Log(ui, GetOnly(indexHandler)))
 
 	proxy := http.NewServeMux()
 	proxy.HandleFunc("/", Proxy(app))
 	ui.App = proxy
 
 	return ui
-}
-
-func healthHandler(ui *WebUI) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		s := ui.Server
-		payload := map[string]interface{}{
-			"now":    util.Nows(),
-			"server": s.RuntimeStats(),
-		}
-		data, err := json.Marshal(payload)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.Header().Add("Content-Type", "application/json")
-		w.Header().Add("Cache-Control", "no-cache")
-		_, _ = w.Write(data)
-	}
 }
 
 func Proxy(app *http.ServeMux) http.HandlerFunc {
@@ -150,7 +116,7 @@ func Proxy(app *http.ServeMux) http.HandlerFunc {
 		   }
 		*/
 
-		prefix := "/faktory"
+		prefix := "/admin"
 		r.Header.Set("X-Script-Name", prefix)
 		r.RequestURI = strings.Replace(r.RequestURI, prefix, "", 1)
 		r.URL.Path = strings.Replace(r.URL.Path, prefix, "", 1)
@@ -158,9 +124,9 @@ func Proxy(app *http.ServeMux) http.HandlerFunc {
 	}
 }
 
-func Layout(w io.Writer, req *http.Request, yield func()) {
-	ego_layout(w, req, yield)
-}
+// func Layout(w io.Writer, req *http.Request, yield func()) {
+// ego_layout(w, req, yield)
+// }
 
 /////////////////////////////////////
 

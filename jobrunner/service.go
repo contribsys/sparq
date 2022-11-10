@@ -5,6 +5,7 @@ import (
 
 	"github.com/contribsys/faktory/client"
 	"github.com/contribsys/faktory/manager"
+	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/util"
 )
 
@@ -38,4 +39,8 @@ func (jr *JobRunner) Shutdown(ctx context.Context) error {
 
 func (jr *JobRunner) Push(job *client.Job) error {
 	return jr.mgr.Push(job)
+}
+
+func (jr *JobRunner) Register(jobtype string, fn sparq.PerformFunc) {
+	jr.exec.Register(jobtype, fn)
 }

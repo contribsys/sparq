@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/contribsys/faktory/client"
+	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/faktory"
 )
 
@@ -43,12 +44,12 @@ type Helper interface {
 	Custom(key string) (value interface{}, ok bool)
 
 	// allows direct access to the Faktory server from the job
-	With(func(faktory.Pusher) error) error
+	With(func(sparq.Pusher) error) error
 }
 
 type jobHelper struct {
 	job *client.Job
-	mgr faktory.Pusher
+	mgr sparq.Pusher
 }
 
 // ensure type compatibility
@@ -89,6 +90,6 @@ func jobContext(mgr *Runner, job *client.Job) context.Context {
 	return ctx
 }
 
-func (h *jobHelper) With(fn func(faktory.Pusher) error) error {
+func (h *jobHelper) With(fn func(sparq.Pusher) error) error {
 	return fn(h.mgr)
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/contribsys/sparq"
+	"github.com/contribsys/sparq/adminui"
 	"github.com/contribsys/sparq/faktory"
 	"github.com/contribsys/sparq/faktoryui"
 	"github.com/contribsys/sparq/finger"
@@ -33,6 +34,7 @@ type Service struct {
 	Database  *gorm.DB
 	JobServer *faktory.Server
 	FaktoryUI *faktoryui.WebUI
+	AdminUI   *adminui.WebUI
 	JobRunner *jobrunner.JobRunner
 
 	https  *http.Server
@@ -68,10 +70,12 @@ func NewService(opts Options) (*Service, error) {
 	}
 	s.JobServer = js
 	s.FaktoryUI = faktoryui.NewWeb(js, opts.Binding)
+	s.AdminUI = adminui.NewWeb(js.Manager(), opts.Binding)
 	s.JobRunner = jobrunner.NewJobRunner(js.Manager(), jobrunner.Options{
 		Concurrency: runtime.NumCPU() * 5,
 		Queues:      []string{"high", "med", "low"},
 	})
+	adminui.Register(s.JobRunner)
 	return s, nil
 }
 
@@ -90,11 +94,12 @@ func (s *Service) Run() error {
 	})
 	root.HandleFunc("/.well-known/webfinger", finger.HttpHandler(s.Database, s.Binding))
 	root.Handle("/faktory/", s.FaktoryUI.App)
+	root.Handle("/admin/", s.AdminUI.App)
 
 	ht := &http.Server{
 		Addr:           s.Binding,
-		ReadTimeout:    5 * time.Second,
-		WriteTimeout:   30 * time.Second,
+		ReadTimeout:    2 * time.Second,
+		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 16,
 		Handler:        root,
 	}
