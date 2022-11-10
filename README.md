@@ -1,4 +1,4 @@
-# Sparq
+# Sparq ⚡️
 
 Sparq will be a Go-based server which implements the ActivityPub protocol, meaning it can be an "instance" within the Fediverse.
 

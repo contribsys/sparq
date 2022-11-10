@@ -10,7 +10,7 @@ db:
 	sqlite3 sparq.db
 
 run:
-	go run cmd/sparq/main.go
+	go run cmd/sparq/main.go -l debug
 
 build:
 	go build -o sparq cmd/sparq/main.go
