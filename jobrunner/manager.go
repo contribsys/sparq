@@ -3,7 +3,6 @@ package jobrunner
 import (
 	"context"
 	"fmt"
-	rt "runtime"
 	"sync"
 
 	"github.com/contribsys/faktory/client"
@@ -18,11 +17,11 @@ type Runner struct {
 
 	Concurrency int
 	Labels      []string
+	Queues      []string
 
 	ctx            context.Context
 	mgr            faktory.Manager
 	state          string
-	queues         []string
 	middleware     []MiddlewareFunc
 	shutdownWaiter *sync.WaitGroup
 	jobHandlers    map[string]Handler
@@ -78,13 +77,13 @@ func (mgr *Runner) Terminate() {
 // NewManager returns a new manager with default values.
 func NewRunner(mgr faktory.Manager) *Runner {
 	return &Runner{
-		Concurrency: rt.NumCPU() * 5,
+		Concurrency: 10,
 		Labels:      []string{"sparq-" + Version},
+		Queues:      []string{"default"},
 
 		ctx:            nil,
 		mgr:            mgr,
 		state:          "",
-		queues:         []string{"default"},
 		shutdownWaiter: &sync.WaitGroup{},
 		jobHandlers:    map[string]Handler{},
 		eventHandlers: map[lifecycleEventType][]LifecycleEventHandler{

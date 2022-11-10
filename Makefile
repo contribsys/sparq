@@ -11,3 +11,6 @@ db:
 
 run:
 	go run cmd/sparq/main.go
+
+build:
+	go build -o sparq cmd/sparq/main.go

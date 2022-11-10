@@ -85,7 +85,7 @@ func processOne(mgr *Runner) error {
 	{
 		var e error
 		err := mgr.with(func(c faktory.Manager) error {
-			job, e = c.Fetch(mgr.ctx, "sparq", mgr.queues...)
+			job, e = c.Fetch(mgr.ctx, "sparq", mgr.Queues...)
 			if e != nil {
 				return e
 			}

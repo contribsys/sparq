@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	futil "github.com/contribsys/faktory/util"
 	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/runtime"
 	"github.com/contribsys/sparq/util"
@@ -25,6 +26,7 @@ func main() {
 
 	opts := ParseArguments()
 	util.InitLogger(opts.LogLevel)
+	futil.InitLogger(opts.LogLevel)
 	util.Debugf("Options: %v", opts)
 
 	s, err := runtime.NewService(opts)
