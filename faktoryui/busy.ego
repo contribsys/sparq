@@ -1,0 +1,57 @@
+<%
+package faktoryui
+
+import (
+  "net/http"
+
+  "github.com/contribsys/faktory/manager"
+)
+
+func ego_busy(w io.Writer, req *http.Request) {
+%>
+
+<% ego_layout(w, req, func() { %>
+
+<div class="row header mt-3">
+  <div class="col-12">
+    <h3><%= t(req, "Jobs") %></h3>
+  </div>
+</div>
+
+<div class="table-responsive">
+  <table class="workers table table-hover table-bordered table-striped table-light">
+    <thead>
+      <th><%= t(req, "Process") %></th>
+      <th><%= t(req, "JID") %></th>
+      <th><%= t(req, "Queue") %></th>
+      <th><%= t(req, "Job") %></th>
+      <th><%= t(req, "Arguments") %></th>
+      <th><%= t(req, "Started") %></th>
+    </thead>
+    <% busyReservations(req, func(res *manager.Reservation) { %>
+      <% job := res.Job %>
+      <tr>
+        <td>
+          <code>
+            <%= res.Wid %>
+          </code>
+        </td>
+        <td>
+          <code>
+            <%= job.Jid %>
+          </code>
+        </td>
+        <td>
+          <a href="<%= root(req) %>/queues/<%= job.Queue %>"><%= job.Queue %></a>
+        </td>
+        <td><code><%= job.Type %></code></td>
+        <td>
+          <div class="args"><%= displayArgs(job.Args) %></div>
+        </td>
+        <td><%= relativeTime(res.Since) %></td>
+      </tr>
+    <% }) %>
+  </table>
+</div>
+<% }) %>
+<% } %>

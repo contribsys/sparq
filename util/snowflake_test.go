@@ -1,0 +1,28 @@
+package util
+
+import (
+	"fmt"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestSnowflake(t *testing.T) {
+	t.Parallel()
+
+	sgen := NewSnowflake()
+
+	sid := sgen.NextID()
+	sid2 := sgen.NextID()
+	assert.Greater(t, sid2, sid)
+
+	ssid := fmt.Sprintf("%d", sid)
+	assert.Greater(t, len(ssid), 16)
+}
+
+func BenchmarkSnowflake(b *testing.B) {
+	sgen := NewSnowflake()
+	for idx := 0; idx < b.N; idx++ {
+		sgen.NextID()
+	}
+}
