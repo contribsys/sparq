@@ -61,7 +61,7 @@ func init() {
 }
 
 type WebUI struct {
-	Pusher
+	sparq.Pusher
 	App         *http.ServeMux
 	Title       string
 	ExtraCssUrl string
@@ -69,7 +69,7 @@ type WebUI struct {
 	Binding     string
 }
 
-func NewWeb(p Pusher, binding string) *WebUI {
+func NewWeb(p sparq.Pusher, binding string) *WebUI {
 	ui := &WebUI{
 		Pusher:    p,
 		Binding:   binding,

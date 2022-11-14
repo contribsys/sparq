@@ -9,10 +9,6 @@ import (
 	"github.com/contribsys/sparq/jobrunner"
 )
 
-type Pusher interface {
-	Push(job *client.Job) error
-}
-
 func NewJob(jobtype string, queue string, args ...interface{}) *client.Job {
 	job := client.NewJob(jobtype, args...)
 	job.Queue = queue

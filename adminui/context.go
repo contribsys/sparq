@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/contribsys/sparq"
 )
 
 type Context interface {
@@ -63,7 +65,7 @@ func (d *DefaultContext) Request() *http.Request {
 	return d.request
 }
 
-func (d *DefaultContext) Pusher() Pusher {
+func (d *DefaultContext) Pusher() sparq.Pusher {
 	return d.webui.Pusher
 }
 
