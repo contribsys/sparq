@@ -13,9 +13,9 @@ db:
 	sqlite3 sparq.db
 
 run:
-	go run cmd/sparq/main.go -l debug
+	go run ./cmd/sparq run -l debug
 
 build:
-	go build -o sparq cmd/sparq/main.go
+	go build -o sparq ./cmd/sparq
 
 .PHONY: build run test generate

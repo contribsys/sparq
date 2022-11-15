@@ -4,119 +4,63 @@ import (
 	"flag"
 	"log"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
-	futil "github.com/contribsys/faktory/util"
 	"github.com/contribsys/sparq"
-	"github.com/contribsys/sparq/core"
-	"github.com/contribsys/sparq/util"
 )
 
 func logPreamble() {
-	log.SetFlags(0)
 	log.Println(sparq.Name, sparq.Version)
 	log.Printf("Copyright © %d Contributed Systems LLC", time.Now().Year())
 	log.Println("Licensed under the GNU Affero Public License 3.0")
 }
 
-func main() {
+func versionExec(args []string) {
+	fs := flag.NewFlagSet("sparq-version", flag.ContinueOnError)
+	fs.Usage = usage
+	if err := fs.Parse(args); err != nil {
+		log.Println(err)
+		return
+	}
+
 	logPreamble()
-
-	opts := ParseArguments()
-	util.InitLogger(opts.LogLevel)
-	futil.InitLogger(opts.LogLevel)
-	util.Debugf("Options: %v", opts)
-
-	s, err := core.NewService(opts)
-	if err != nil {
-		util.Error("Unable to start Sparq", err)
-		return
-	}
-
-	go HandleSignals(s)
-
-	// does not return until shutdown
-	err = s.Run()
-	if err != nil {
-		util.Error("Error running Sparq", err)
-		return
-	}
 }
 
-func ParseArguments() core.Options {
-	host := os.Getenv("SPARQ_HOSTNAME")
-	if host == "" {
-		host = "localhost.dev"
-	}
+func usage() {
+	log.Println(`
+	sparq is a ActivityPub daemon and tools
+	
+	Usage:
+	
+		sparq <command> <arguments>
+	
+	Valid commands are:
+	
+		sparq run [-h hostname]
+		sparq version
+		sparq help
+	`)
+}
 
-	defaults := core.Options{
-		Binding:          "localhost:9494",
-		Hostname:         host,
-		LogLevel:         "info",
-		ConfigDirectory:  ".",
-		StorageDirectory: ".",
-	}
+func main() {
+	log.SetFlags(0)
 
-	flag.Usage = help
-	flag.StringVar(&defaults.Hostname, "h", "localhost.dev", "Instance hostname")
-	flag.StringVar(&defaults.Binding, "b", "localhost:9494", "Network binding")
-	flag.StringVar(&defaults.LogLevel, "l", "info", "Logging level (error, warn, info, debug)")
-
-	// undocumented on purpose, we don't want people changing these if possible
-	flag.StringVar(&defaults.StorageDirectory, "d", ".", "Storage directory")
-	flag.StringVar(&defaults.ConfigDirectory, "c", ".", "Config directory")
-	versionPtr := flag.Bool("v", false, "Show version")
-	flag.Parse()
-
-	if *versionPtr {
+	cmd := ""
+	args := os.Args
+	if len(args) > 1 {
+		cmd, args = args[1], args[2:]
+	} else {
+		usage()
 		os.Exit(0)
+		return
 	}
 
-	return defaults
-}
-
-func help() {
-	log.Println("-h [hostname]\tInstance hostname, default: localhost.dev")
-	log.Println("-b [binding]\tNetwork binding (use :9494 to listen on all interfaces), default: localhost:9494")
-	log.Println("-l [level]\tSet logging level (error, warn, info, debug), default: info")
-	log.Println("-v\t\tShow version and license information")
-	log.Println("--help\t\tThis help screen")
-}
-
-var (
-	Term os.Signal = syscall.SIGTERM
-	Hup  os.Signal = syscall.SIGHUP
-	Info os.Signal = syscall.SIGTTIN
-
-	SignalHandlers = map[os.Signal]func(*core.Service){
-		Term:         exit,
-		os.Interrupt: exit,
-		// Hup:          reload,
-		Info: threadDump,
+	switch cmd {
+	case "version":
+		versionExec(args)
+	case "run":
+		runExec(args)
+	default:
+		usage()
 	}
-)
-
-func HandleSignals(s *core.Service) {
-	signals := make(chan os.Signal, 1)
-	for k := range SignalHandlers {
-		signal.Notify(signals, k)
-	}
-
-	for {
-		sig := <-signals
-		util.Debugf("Received signal: %v", sig)
-		funk := SignalHandlers[sig]
-		funk(s)
-	}
-}
-
-func exit(s *core.Service) {
-	util.Infof("%s shutting down", sparq.Name)
-	s.Close()
-}
-
-func threadDump(s *core.Service) {
-	util.DumpProcessTrace()
 }
