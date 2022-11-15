@@ -11,7 +11,7 @@ import (
 	"github.com/contribsys/faktory/manager"
 	"github.com/contribsys/faktory/storage"
 	"github.com/contribsys/sparq/util"
-	"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v9"
 )
 
 type Options struct {
@@ -27,7 +27,6 @@ type Server struct {
 	store        storage.Store
 	taskRunner   *taskRunner
 	mu           sync.Mutex
-	ctx          context.Context
 	closed       bool
 	redisStopper func()
 }
@@ -70,10 +69,9 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 
 	s.mu.Lock()
-	s.ctx = ctx
 	s.store = store
 	s.mgr = manager.NewManager(store)
-	s.startTasks()
+	s.startTasks(ctx)
 	s.mu.Unlock()
 
 	util.Infof("Faktory %s booted", client.Version)
@@ -98,11 +96,11 @@ func (s *Server) RuntimeStats() map[string]interface{} {
 	}
 }
 
-func (s *Server) CurrentState() (map[string]interface{}, error) {
+func (s *Server) CurrentState(ctx context.Context) (map[string]interface{}, error) {
 	queueCmd := map[string]*redis.IntCmd{}
-	_, err := s.store.Redis().Pipelined(func(pipe redis.Pipeliner) error {
-		s.store.EachQueue(func(q storage.Queue) {
-			queueCmd[q.Name()] = pipe.LLen(q.Name())
+	_, err := s.store.Redis().Pipelined(ctx, func(pipe redis.Pipeliner) error {
+		s.store.EachQueue(ctx, func(q storage.Queue) {
+			queueCmd[q.Name()] = pipe.LLen(ctx, q.Name())
 		})
 		return nil
 	})
@@ -123,12 +121,12 @@ func (s *Server) CurrentState() (map[string]interface{}, error) {
 		"now":             util.Nows(),
 		"server_utc_time": time.Now().UTC().Format("15:04:05 UTC"),
 		"faktory": map[string]interface{}{
-			"total_failures":  s.store.TotalFailures(),
-			"total_processed": s.store.TotalProcessed(),
+			"total_failures":  s.store.TotalFailures(ctx),
+			"total_processed": s.store.TotalProcessed(ctx),
 			"total_enqueued":  totalQueued,
 			"total_queues":    totalQueues,
 			"queues":          queues,
-			"tasks":           s.taskRunner.Stats(),
+			"tasks":           s.taskRunner.Stats(ctx),
 		},
 		"server": map[string]interface{}{
 			"description":     client.Name,

@@ -18,7 +18,7 @@ func ego_summary(w io.Writer, req *http.Request) {
 //line summary.ego:9
 	_, _ = io.WriteString(w, "\n<ul class=\"list-unstyled summary row justify-content-around\">\n  <li class=\"processed col-12 col-md-auto\">\n    <span class=\"count\">")
 //line summary.ego:11
-	_, _ = io.WriteString(w, html.EscapeString(fmt.Sprint(uintWithDelimiter(store.TotalProcessed()))))
+	_, _ = io.WriteString(w, html.EscapeString(fmt.Sprint(uintWithDelimiter(store.TotalProcessed(req.Context())))))
 //line summary.ego:11
 	_, _ = io.WriteString(w, "</span>\n    <span class=\"desc\">")
 //line summary.ego:12
@@ -26,7 +26,7 @@ func ego_summary(w io.Writer, req *http.Request) {
 //line summary.ego:12
 	_, _ = io.WriteString(w, "</span>\n  </li>\n  <li class=\"failed col-12 col-md-auto\">\n    <span class=\"count\">")
 //line summary.ego:15
-	_, _ = io.WriteString(w, html.EscapeString(fmt.Sprint(uintWithDelimiter(store.TotalFailures()))))
+	_, _ = io.WriteString(w, html.EscapeString(fmt.Sprint(uintWithDelimiter(store.TotalFailures(req.Context())))))
 //line summary.ego:15
 	_, _ = io.WriteString(w, "</span>\n    <span class=\"desc\">")
 //line summary.ego:16
@@ -38,7 +38,7 @@ func ego_summary(w io.Writer, req *http.Request) {
 //line summary.ego:19
 	_, _ = io.WriteString(w, "\">\n      <span class=\"count\">")
 //line summary.ego:20
-	_, _ = io.WriteString(w, html.EscapeString(fmt.Sprint(uintWithDelimiter(store.Working().Size()))))
+	_, _ = io.WriteString(w, html.EscapeString(fmt.Sprint(uintWithDelimiter(store.Working().Size(req.Context())))))
 //line summary.ego:20
 	_, _ = io.WriteString(w, "</span>\n      <span class=\"desc\">")
 //line summary.ego:21
@@ -62,7 +62,7 @@ func ego_summary(w io.Writer, req *http.Request) {
 //line summary.ego:31
 	_, _ = io.WriteString(w, "\">\n      <span class=\"count\">")
 //line summary.ego:32
-	_, _ = io.WriteString(w, html.EscapeString(fmt.Sprint(uintWithDelimiter(store.Retries().Size()))))
+	_, _ = io.WriteString(w, html.EscapeString(fmt.Sprint(uintWithDelimiter(store.Retries().Size(req.Context())))))
 //line summary.ego:32
 	_, _ = io.WriteString(w, "</span>\n      <span class=\"desc\">")
 //line summary.ego:33
@@ -74,7 +74,7 @@ func ego_summary(w io.Writer, req *http.Request) {
 //line summary.ego:37
 	_, _ = io.WriteString(w, "\">\n      <span class=\"count\">")
 //line summary.ego:38
-	_, _ = io.WriteString(w, html.EscapeString(fmt.Sprint(uintWithDelimiter(store.Scheduled().Size()))))
+	_, _ = io.WriteString(w, html.EscapeString(fmt.Sprint(uintWithDelimiter(store.Scheduled().Size(req.Context())))))
 //line summary.ego:38
 	_, _ = io.WriteString(w, "</span>\n      <span class=\"desc\">")
 //line summary.ego:39
@@ -86,7 +86,7 @@ func ego_summary(w io.Writer, req *http.Request) {
 //line summary.ego:43
 	_, _ = io.WriteString(w, "\">\n      <span class=\"count\">")
 //line summary.ego:44
-	_, _ = io.WriteString(w, html.EscapeString(fmt.Sprint(uintWithDelimiter(store.Dead().Size()))))
+	_, _ = io.WriteString(w, html.EscapeString(fmt.Sprint(uintWithDelimiter(store.Dead().Size(req.Context())))))
 //line summary.ego:44
 	_, _ = io.WriteString(w, "</span>\n      <span class=\"desc\">")
 //line summary.ego:45

@@ -81,7 +81,7 @@ func NewWeb(p sparq.Pusher, binding string) *WebUI {
 	app.HandleFunc("/static/", staticHandler)
 	app.HandleFunc("/", Log(ui, func(w http.ResponseWriter, r *http.Request) {
 		job := NewJob("atype", "high", "Bob")
-		err := ctx(r).Pusher().Push(job)
+		err := ctx(r).Pusher().Push(r.Context(), job)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

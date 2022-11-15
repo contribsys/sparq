@@ -28,7 +28,7 @@ func AType(ctx context.Context, name string) error {
 	fmt.Println("Hello", name)
 	helper := jobrunner.HelperFor(ctx)
 	return helper.With(func(p sparq.Pusher) error {
-		return p.Push(NewJob("btype", "low", name))
+		return p.Push(ctx, NewJob("btype", "low", name))
 	})
 }
 

@@ -19,7 +19,7 @@ func ego_queue(w io.Writer, req *http.Request, q storage.Queue, count, currentPa
     </h3>
   </div>
   <div class="col-7 d-flex justify-content-end">
-    <% ego_paging(w, req, fmt.Sprintf("/queues/%s", q.Name()), q.Size(), count, currentPage) %>
+    <% ego_paging(w, req, fmt.Sprintf("/queues/%s", q.Name()), q.Size(req.Context()), count, currentPage) %>
   </div>
 </header>
 
@@ -34,7 +34,7 @@ func ego_queue(w io.Writer, req *http.Request, q storage.Queue, count, currentPa
         <th><%= t(req, "Type") %></th>
         <th><%= t(req, "Arguments") %></th>
       </thead>
-      <% queueJobs(q, count, currentPage, func(idx int, key []byte, job *client.Job) { %>
+      <% queueJobs(req.Context(), q, count, currentPage, func(idx int, key []byte, job *client.Job) { %>
         <tr>
           <td><input type="checkbox" name="bkey" value="<%= base64.RawURLEncoding.EncodeToString(key) %>" /></td>
           <td><%= job.Jid %></td>
@@ -49,7 +49,7 @@ func ego_queue(w io.Writer, req *http.Request, q storage.Queue, count, currentPa
       <button class="btn btn-danger" type="submit" name="action" value="delete" data-confirm="<%= t(req, "AreYouSure") %>"><%= t(req, "Delete") %></button>
     </div>
     <div class="col-7 d-flex justify-content-end">
-      <% ego_paging(w, req, fmt.Sprintf("/queues/%s", q.Name()), q.Size(), count, currentPage) %>
+      <% ego_paging(w, req, fmt.Sprintf("/queues/%s", q.Name()), q.Size(req.Context()), count, currentPage) %>
     </div>
   </div>
 </form>

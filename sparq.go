@@ -19,7 +19,7 @@ var (
 type PerformFunc func(ctx context.Context, args ...interface{}) error
 
 type Pusher interface {
-	Push(*client.Job) error
+	Push(context.Context, *client.Job) error
 }
 
 type JobService interface {

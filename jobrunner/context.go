@@ -83,11 +83,10 @@ func HelperFor(ctx context.Context) Helper {
 	return nil
 }
 
-func jobContext(mgr *Runner, job *client.Job) context.Context {
-	ctx := mgr.ctx
-	ctx = context.WithValue(ctx, mgrKey, mgr.mgr)
-	ctx = context.WithValue(ctx, jobKey, job)
-	return ctx
+func jobContext(ctx context.Context, mgr *Runner, job *client.Job) context.Context {
+	x := context.WithValue(ctx, mgrKey, mgr.mgr)
+	x = context.WithValue(x, jobKey, job)
+	return x
 }
 
 func (h *jobHelper) With(fn func(sparq.Pusher) error) error {

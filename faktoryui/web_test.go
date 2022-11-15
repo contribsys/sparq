@@ -111,7 +111,7 @@ func bootRuntime(t *testing.T, name string, fn func(*WebUI, *faktory.Server, *te
 
 	fn(web, s, t)
 
-	s.Store().Flush()
+	s.Store().Flush(context.Background())
 	s.Close()
 }
 

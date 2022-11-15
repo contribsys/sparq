@@ -119,7 +119,7 @@ func (s *Service) Run() error {
 	}
 
 	<-s.ctx.Done()
-	s.shutdown(10 * time.Second)
+	s.shutdown(20 * time.Second)
 	return nil
 }
 
@@ -148,6 +148,7 @@ func (s *Service) shutdown(timeout time.Duration) {
 	}()
 	grp.Wait()
 
+	util.Infof("Stopping job server")
 	// this shuts down Redis, can't call until JobRunner is dead
 	s.JobServer.Close()
 }

@@ -1,6 +1,9 @@
 .DEFAULT_GOAL := test
 
-test:
+ generate:
+	go generate ./...
+
+test: generate
 	go test ./...
 
 int:
@@ -14,3 +17,5 @@ run:
 
 build:
 	go build -o sparq cmd/sparq/main.go
+
+.PHONY: build run test generate

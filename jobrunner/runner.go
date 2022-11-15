@@ -1,10 +1,12 @@
 package jobrunner
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"math"
 	"math/rand"
+	"sync/atomic"
 	"time"
 
 	"github.com/contribsys/faktory/client"
@@ -28,7 +30,9 @@ func (s *NoHandlerError) Error() string {
 	return fmt.Sprintf("No handler registered for job type %s", s.JobType)
 }
 
-func process(mgr *Runner, idx int) {
+func process(ctx context.Context, mgr *Runner, idx int) {
+	atomic.AddInt32(&mgr.workerCount, 1)
+	defer atomic.AddInt32(&mgr.workerCount, -1)
 	mgr.shutdownWaiter.Add(1)
 	defer mgr.shutdownWaiter.Done()
 
@@ -43,13 +47,16 @@ func process(mgr *Runner, idx int) {
 
 		// check for shutdown
 		select {
-		case <-mgr.ctx.Done():
+		case <-ctx.Done():
 			return
 		default:
 		}
 
-		err := processOne(mgr)
+		err := processOne(ctx, mgr)
 		if err != nil {
+			if mgr.state != "" {
+				return
+			}
 			if err != io.EOF {
 				// Faktory's Fetch from Redis doesn't use the Context under the covers
 				// so we need this hack to avoid a load of errors on shutdown
@@ -66,7 +73,7 @@ func process(mgr *Runner, idx int) {
 				// exponential backoff so we don't constantly slam the
 				// log with "connection refused" errors or similar.
 				select {
-				case <-mgr.ctx.Done():
+				case <-ctx.Done():
 				case <-time.After(time.Duration(sleep) * time.Second):
 					sleep = math.Max(sleep*2, 30)
 				}
@@ -78,14 +85,14 @@ func process(mgr *Runner, idx int) {
 	}
 }
 
-func processOne(mgr *Runner) error {
+func processOne(ctx context.Context, mgr *Runner) error {
 	var job *client.Job
 
 	// explicit scopes to limit variable visibility
 	{
 		var e error
 		err := mgr.with(func(c faktory.Manager) error {
-			job, e = c.Fetch(mgr.ctx, "sparq", mgr.Queues...)
+			job, e = c.Fetch(ctx, "sparq", mgr.Queues...)
 			if e != nil {
 				return e
 			}
@@ -104,7 +111,7 @@ func processOne(mgr *Runner) error {
 	if perform == nil {
 		je := &NoHandlerError{JobType: job.Type}
 		err := mgr.with(func(c faktory.Manager) error {
-			return c.Fail(faktory.ToFailure(job.Jid, je))
+			return c.Fail(ctx, faktory.ToFailure(job.Jid, je))
 		})
 		if err != nil {
 			return err
@@ -112,7 +119,7 @@ func processOne(mgr *Runner) error {
 		return je
 	}
 
-	joberr := dispatch(mgr.middleware, jobContext(mgr, job), job, perform)
+	joberr := dispatch(mgr.middleware, jobContext(ctx, mgr, job), job, perform)
 	if joberr != nil {
 		// job errors are normal and expected, we don't return early from them
 		util.Error(fmt.Sprintf("Error running %s job %s", job.Type, job.Jid), joberr)
@@ -120,9 +127,9 @@ func processOne(mgr *Runner) error {
 
 	return mgr.with(func(c faktory.Manager) error {
 		if joberr != nil {
-			return c.Fail(faktory.ToFailure(job.Jid, joberr))
+			return c.Fail(ctx, faktory.ToFailure(job.Jid, joberr))
 		} else {
-			_, err := c.Acknowledge(job.Jid)
+			_, err := c.Acknowledge(ctx, job.Jid)
 			return err
 		}
 	})

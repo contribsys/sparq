@@ -11,7 +11,7 @@ import (
 )
 
 func statsHandler(w http.ResponseWriter, r *http.Request) {
-	hash, err := ctx(r).Server().CurrentState()
+	hash, err := ctx(r).Server().CurrentState(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -50,7 +50,7 @@ func queueHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	queueName := name[1]
-	q, ok := ctx(r).Store().ExistingQueue(queueName)
+	q, ok := ctx(r).Store().ExistingQueue(r.Context(), queueName)
 	if !ok {
 		Redirect(w, r, "/queues", http.StatusFound)
 		return
@@ -75,7 +75,7 @@ func queueHandler(w http.ResponseWriter, r *http.Request) {
 				}
 				bkeys[idx] = bindata
 			}
-			err := q.Delete(bkeys)
+			err := q.Delete(r.Context(), bkeys)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -84,19 +84,19 @@ func queueHandler(w http.ResponseWriter, r *http.Request) {
 			action := r.FormValue("action")
 			if action == "delete" {
 				// clear entire queue
-				_, err := q.Clear()
+				_, err := q.Clear(r.Context())
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
 			} else if action == "pause" {
-				err := ctx(r).webui.Server.Manager().PauseQueue(q.Name())
+				err := ctx(r).webui.Server.Manager().PauseQueue(r.Context(), q.Name())
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
 			} else if action == "resume" {
-				err := ctx(r).webui.Server.Manager().ResumeQueue(q.Name())
+				err := ctx(r).webui.Server.Manager().ResumeQueue(r.Context(), q.Name())
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
@@ -180,7 +180,7 @@ func retryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := set.Get([]byte(key))
+	data, err := set.Get(r.Context(), []byte(key))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -260,7 +260,7 @@ func scheduledJobHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := set.Get([]byte(key))
+	data, err := set.Get(r.Context(), []byte(key))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -322,7 +322,7 @@ func deadHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid URL input", http.StatusBadRequest)
 		return
 	}
-	data, err := ctx(r).Store().Dead().Get([]byte(key))
+	data, err := ctx(r).Store().Dead().Get(r.Context(), []byte(key))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

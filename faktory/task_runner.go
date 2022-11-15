@@ -36,8 +36,8 @@ type task struct {
 
 type Taskable interface {
 	Name() string
-	Execute() error
-	Stats() map[string]interface{}
+	Execute(ctx context.Context) error
+	Stats(ctx context.Context) map[string]interface{}
 }
 
 func newTaskRunner() *taskRunner {
@@ -63,7 +63,7 @@ func (ts *taskRunner) Run(ctx context.Context) {
 		defer timer.Stop()
 
 		for {
-			ts.cycle()
+			ts.cycle(ctx)
 			select {
 			case <-timer.C:
 			case <-ctx.Done():
@@ -74,18 +74,18 @@ func (ts *taskRunner) Run(ctx context.Context) {
 	}()
 }
 
-func (ts *taskRunner) Stats() map[string]map[string]interface{} {
+func (ts *taskRunner) Stats(ctx context.Context) map[string]map[string]interface{} {
 	data := map[string]map[string]interface{}{}
 
 	ts.mutex.RLock()
 	defer ts.mutex.RUnlock()
 	for _, task := range ts.tasks {
-		data[task.runner.Name()] = task.runner.Stats()
+		data[task.runner.Name()] = task.runner.Stats(ctx)
 	}
 	return data
 }
 
-func (ts *taskRunner) cycle() {
+func (ts *taskRunner) cycle(ctx context.Context) {
 	count := int64(0)
 	start := time.Now()
 	sec := start.Unix()
@@ -97,7 +97,7 @@ func (ts *taskRunner) cycle() {
 		}
 		tstart := time.Now()
 		// util.Debugf("Running task %s", t.runner.Name())
-		err := t.runner.Execute()
+		err := t.runner.Execute(ctx)
 		tend := time.Now()
 		if err != nil {
 			util.Warnf("Error running task %s: %v", t.runner.Name(), err)
@@ -112,7 +112,7 @@ func (ts *taskRunner) cycle() {
 	atomic.AddInt64(&ts.walltimeNs, end.Sub(start).Nanoseconds())
 }
 
-func (s *Server) startTasks() {
+func (s *Server) startTasks(ctx context.Context) {
 	ts := newTaskRunner()
 	// scan the various sets, looking for things to do
 	ts.AddTask(5, &scanner{name: "Scheduled", set: s.store.Scheduled(), task: s.mgr.EnqueueScheduledJobs})
@@ -122,6 +122,6 @@ func (s *Server) startTasks() {
 	// reaps job reservations which have expired
 	ts.AddTask(15, &reservationReaper{s.mgr, 0})
 
-	ts.Run(s.ctx)
+	ts.Run(ctx)
 	s.taskRunner = ts
 }

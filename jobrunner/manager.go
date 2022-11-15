@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/contribsys/faktory/client"
 	"github.com/contribsys/sparq"
@@ -20,7 +21,9 @@ type Runner struct {
 	Labels      []string
 	Queues      []string
 
-	ctx            context.Context
+	jobCtx         context.Context
+	jobCtxCancel   context.CancelFunc
+	workerCount    int32
 	mgr            faktory.Manager
 	state          string
 	middleware     []MiddlewareFunc
@@ -62,7 +65,30 @@ func (mgr *Runner) Quiet() {
 
 // Terminate signals that the various components should shutdown.
 // Blocks on the shutdownWaiter until all components have finished.
-func (mgr *Runner) Terminate() {
+func (mgr *Runner) Terminate(shutdownCtx context.Context) {
+	util.Infof("Stopping job runner...")
+	mgr.Quiet()
+
+	// We give active jobs a few seconds to finish.
+	// Executing jobs use a different context so cancel()'ing the system context
+	// does not immediately stop the job subsystem. This gives the
+	// jobs a few seconds to finish rather than killing them when half-complete.
+	poll := 100 * time.Millisecond
+	timer := time.NewTimer(poll)
+	defer timer.Stop()
+	for {
+		if mgr.workerCount == 0 {
+			break
+		}
+		select {
+		case <-shutdownCtx.Done():
+			util.Debugf("%d jobs still running", mgr.workerCount)
+			break
+		case <-timer.C:
+			timer.Reset(poll)
+		}
+	}
+
 	mgr.mut.Lock()
 	defer mgr.mut.Unlock()
 
@@ -70,19 +96,21 @@ func (mgr *Runner) Terminate() {
 		return
 	}
 
+	util.Infof("Terminating job runner")
 	mgr.state = "terminate"
+	mgr.jobCtxCancel()
 	_ = mgr.fireEvent(Shutdown)
 	mgr.shutdownWaiter.Wait()
 }
 
 // NewManager returns a new manager with default values.
 func NewRunner(mgr faktory.Manager) *Runner {
-	return &Runner{
+	r := &Runner{
 		Concurrency: 10,
 		Labels:      []string{"sparq-" + sparq.Version},
 		Queues:      []string{"default"},
 
-		ctx:            nil,
+		workerCount:    0,
 		mgr:            mgr,
 		state:          "",
 		shutdownWaiter: &sync.WaitGroup{},
@@ -93,20 +121,23 @@ func NewRunner(mgr faktory.Manager) *Runner {
 			Shutdown: {},
 		},
 	}
+	jobCtx, cancelfn := context.WithCancel(context.Background())
+	r.jobCtx = jobCtx
+	r.jobCtxCancel = cancelfn
+	return r
 }
 
 // RunWithContext starts processing jobs. The method will return if an error is encountered while starting.
 // If the context is present then os signals will be ignored, the context must be canceled for the method to return
 // after running.
 func (mgr *Runner) Run(ctx context.Context) error {
-	mgr.ctx = ctx
 	err := mgr.fireEvent(Startup)
 	if err != nil {
 		return err
 	}
 
 	for i := 0; i < mgr.Concurrency; i++ {
-		go process(mgr, i)
+		go process(mgr.jobCtx, mgr, i)
 	}
 	return nil
 }

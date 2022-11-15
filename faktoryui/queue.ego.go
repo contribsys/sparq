@@ -27,7 +27,7 @@ func ego_queue(w io.Writer, req *http.Request, q storage.Queue, count, currentPa
 //line queue.ego:19
 		_, _ = io.WriteString(w, "\n    </h3>\n  </div>\n  <div class=\"col-7 d-flex justify-content-end\">\n    ")
 //line queue.ego:22
-		ego_paging(w, req, fmt.Sprintf("/queues/%s", q.Name()), q.Size(), count, currentPage)
+		ego_paging(w, req, fmt.Sprintf("/queues/%s", q.Name()), q.Size(req.Context()), count, currentPage)
 //line queue.ego:23
 		_, _ = io.WriteString(w, "\n  </div>\n</header>\n\n<form action=\"")
 //line queue.ego:26
@@ -55,7 +55,7 @@ func ego_queue(w io.Writer, req *http.Request, q storage.Queue, count, currentPa
 //line queue.ego:35
 		_, _ = io.WriteString(w, "</th>\n      </thead>\n      ")
 //line queue.ego:37
-		queueJobs(q, count, currentPage, func(idx int, key []byte, job *client.Job) {
+		queueJobs(req.Context(), q, count, currentPage, func(idx int, key []byte, job *client.Job) {
 //line queue.ego:38
 			_, _ = io.WriteString(w, "\n        <tr>\n          <td><input type=\"checkbox\" name=\"bkey\" value=\"")
 //line queue.ego:39
@@ -87,7 +87,7 @@ func ego_queue(w io.Writer, req *http.Request, q storage.Queue, count, currentPa
 //line queue.ego:49
 		_, _ = io.WriteString(w, "</button>\n    </div>\n    <div class=\"col-7 d-flex justify-content-end\">\n      ")
 //line queue.ego:52
-		ego_paging(w, req, fmt.Sprintf("/queues/%s", q.Name()), q.Size(), count, currentPage)
+		ego_paging(w, req, fmt.Sprintf("/queues/%s", q.Name()), q.Size(req.Context()), count, currentPage)
 //line queue.ego:53
 		_, _ = io.WriteString(w, "\n    </div>\n  </div>\n</form>\n\n")
 //line queue.ego:57

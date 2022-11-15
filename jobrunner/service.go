@@ -32,13 +32,12 @@ func (jr *JobRunner) Run(ctx context.Context) error {
 }
 
 func (jr *JobRunner) Shutdown(ctx context.Context) error {
-	// TODO Fix this to use context, not Wait forever
-	jr.exec.Terminate()
+	jr.exec.Terminate(ctx)
 	return nil
 }
 
-func (jr *JobRunner) Push(job *client.Job) error {
-	return jr.mgr.Push(job)
+func (jr *JobRunner) Push(ctx context.Context, job *client.Job) error {
+	return jr.mgr.Push(ctx, job)
 }
 
 func (jr *JobRunner) Register(jobtype string, fn sparq.PerformFunc) {
