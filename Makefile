@@ -24,4 +24,7 @@ run:
 build:
 	go build -o sparq ./cmd/sparq
 
-.PHONY: build run test generate db up redo
+clean:
+	rm redis.log faktory.rdb
+
+.PHONY: build run test generate db up redo clean
