@@ -60,6 +60,8 @@ func main() {
 		versionExec(args)
 	case "run":
 		runExec(args)
+	case "migrate":
+		migrateExec(args)
 	default:
 		usage()
 	}

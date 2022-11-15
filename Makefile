@@ -12,10 +12,16 @@ int:
 db:
 	sqlite3 sparq.db
 
+up:
+	go run ./cmd/sparq migrate
+
+redo:
+	go run ./cmd/sparq migrate redo
+
 run:
 	go run ./cmd/sparq run -l debug
 
 build:
 	go build -o sparq ./cmd/sparq
 
-.PHONY: build run test generate
+.PHONY: build run test generate db up redo

@@ -15,8 +15,8 @@ import (
 	"github.com/contribsys/sparq/finger"
 	"github.com/contribsys/sparq/jobrunner"
 	"github.com/contribsys/sparq/util"
-	"github.com/glebarez/sqlite"
-	"gorm.io/gorm"
+	"github.com/jmoiron/sqlx"
+	_ "modernc.org/sqlite"
 )
 
 type Options struct {
@@ -31,7 +31,7 @@ type Options struct {
 // It holds all of the child services and orchestrates them.
 type Service struct {
 	Options
-	Database  *gorm.DB
+	Database  *sqlx.DB
 	JobServer *faktory.Server
 	FaktoryUI *faktoryui.WebUI
 	AdminUI   *adminui.WebUI
@@ -43,18 +43,19 @@ type Service struct {
 }
 
 func NewService(opts Options) (*Service, error) {
-	dbx, err := gorm.Open(sqlite.Open("sparq.db"), &gorm.Config{})
-	if err != nil {
-		return nil, err
+	util.Debugf("Database: %d, Migrations: %d", DatabaseVersion(), MigrationsVersion())
+
+	if DatabaseVersion() > MigrationsVersion() {
+		return nil, fmt.Errorf("Your sparq database version %d is too new, expecting <= %d. Are you accidentally running an old binary?", DatabaseVersion(), MigrationsVersion())
 	}
 
 	var ver string
-	dbx.Raw("select sqlite_version()").Scan(&ver)
-	util.Infof("Starting sqlite %s", ver)
+	_ = db.QueryRow("select sqlite_version()").Scan(&ver)
+	util.Infof("Running sqlite %s", ver)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Service{
-		Database: dbx,
+		Database: db,
 		ctx:      ctx,
 		cancel:   cancel,
 		Options:  opts,
@@ -64,7 +65,7 @@ func NewService(opts Options) (*Service, error) {
 		StorageDirectory: opts.StorageDirectory,
 		RedisSock:        "sparq.redis.sock",
 	})
-	err = js.Run(ctx) // does not block
+	err := js.Run(ctx) // does not block
 	if err != nil {
 		return nil, err
 	}

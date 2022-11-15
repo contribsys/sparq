@@ -2,28 +2,22 @@ package finger
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
-	"github.com/contribsys/sparq/model"
-	"gorm.io/gorm"
+	"github.com/jmoiron/sqlx"
 )
 
 var (
 	ErrNotFound = errors.New("User not found")
 )
 
-func Lookup(ctx context.Context, db *gorm.DB, username, host string) (*Resource, error) {
+func Lookup(ctx context.Context, db *sql.DB, username, host string) (*Resource, error) {
 
-	var acct model.Account
-	err := db.Where("username = ?", username).First(&acct).Error
-	if err == gorm.ErrRecordNotFound {
-		return nil, ErrNotFound
-	} else if err != nil {
-		return nil, err
-	}
+	// var acct model.Account
 
 	return &Resource{
 		Subject: "acct:" + username + "@" + host,
@@ -47,7 +41,7 @@ func Lookup(ctx context.Context, db *gorm.DB, username, host string) (*Resource,
 
 }
 
-func HttpHandler(db *gorm.DB, hostname string) http.HandlerFunc {
+func HttpHandler(db *sqlx.DB, hostname string) http.HandlerFunc {
 	return func(resp http.ResponseWriter, req *http.Request) {
 		username := req.URL.Query().Get("resource")
 		fmt.Println(username)

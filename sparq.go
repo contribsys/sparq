@@ -2,6 +2,7 @@ package sparq
 
 import (
 	"context"
+	"embed"
 	"fmt"
 
 	"github.com/contribsys/faktory/client"
@@ -11,6 +12,9 @@ const (
 	Name    = "Sparq⚡️"
 	Version = "0.0.1"
 )
+
+//go:embed db/migrate/*.sql
+var Migrations embed.FS
 
 var (
 	UserAgent = fmt.Sprintf("%s v%s", Name, Version)
