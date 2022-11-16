@@ -11,6 +11,7 @@ import (
 	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/core"
 	"github.com/contribsys/sparq/util"
+	"github.com/pressly/goose/v3"
 )
 
 func runExec(args []string) {
@@ -19,6 +20,9 @@ func runExec(args []string) {
 	util.InitLogger(opts.LogLevel)
 	futil.InitLogger(opts.LogLevel)
 	util.Debugf("Options: %v", opts)
+
+	_ = goose.SetDialect("sqlite3")
+	core.BootDB()
 
 	s, err := core.NewService(opts)
 	if err != nil {

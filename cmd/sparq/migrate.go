@@ -58,17 +58,17 @@ func migrateExec(args []string) {
 
 	goose.SetBaseFS(sparq.Migrations)
 
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		log.Printf("Unable to migrate: %v\n", err)
+		return
+	}
+
 	// get the current database schema version
 	dbver := GetDatabaseVersion(db)
 	migver := GetMigrationsVersion(db)
 
 	if dbver > migver {
 		die(fmt.Sprintf("Your sparq %s database version %d is newer than this binary %d, are you using the wrong version?", sparq.Version, dbver, migver))
-	}
-
-	if err := goose.SetDialect("sqlite3"); err != nil {
-		log.Printf("Unable to migrate: %v\n", err)
-		return
 	}
 
 	cmd := "up"

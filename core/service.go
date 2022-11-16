@@ -49,6 +49,10 @@ func NewService(opts Options) (*Service, error) {
 		return nil, fmt.Errorf("Your sparq database version %d is too new, expecting <= %d. Are you accidentally running an old binary?", DatabaseVersion(), MigrationsVersion())
 	}
 
+	if DatabaseVersion() < MigrationsVersion() {
+		return nil, fmt.Errorf("Please migrate your sparq database, run `sparq migrate`")
+	}
+
 	var ver string
 	_ = db.QueryRow("select sqlite_version()").Scan(&ver)
 	util.Infof("Running sqlite %s", ver)

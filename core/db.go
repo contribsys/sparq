@@ -11,7 +11,7 @@ var (
 	migVer int64
 )
 
-func init() {
+func BootDB() {
 	db = mustOpenDatabase()
 	dbVer = getDatabaseVersion()
 	migVer = getMigrationsVersion()
