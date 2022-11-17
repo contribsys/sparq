@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/contribsys/sparq"
+	"github.com/contribsys/sparq/db"
 	"github.com/pressly/goose/v3"
 )
 
@@ -15,48 +16,32 @@ func die(msg any) {
 	os.Exit(0)
 }
 
-var (
-	DatabaseVersion  int64
-	MigrationVersion int64
-)
-
-func GetDatabaseVersion(db *sql.DB) int64 {
-	if DatabaseVersion > 0 {
-		return DatabaseVersion
-	}
-	dbver, err := goose.GetDBVersion(db)
-	if err != nil {
-		die(err)
-	}
-	DatabaseVersion = dbver
-	return DatabaseVersion
+func getDatabaseVersion(db *sql.DB) (int64, error) {
+	return goose.GetDBVersion(db)
 }
 
-func GetMigrationsVersion(db *sql.DB) int64 {
-	if MigrationVersion > 0 {
-		return MigrationVersion
-	}
+func getMigrationsVersion(db *sql.DB) (int64, error) {
 	maxInt := int64((1 << 63) - 1)
-	migs, err := goose.CollectMigrations("db/migrate", 0, maxInt)
+	migs, err := goose.CollectMigrations("migrate", 0, maxInt)
 	if err != nil {
-		die(err)
+		return 0, err
 	}
 
-	mig, _ := migs.Last()
-	if mig != nil {
-		MigrationVersion = mig.Version
+	mig, err := migs.Last()
+	if err != nil {
+		return 0, err
 	}
-	return MigrationVersion
+	return mig.Version, nil
 }
 
 func migrateExec(args []string) {
-	db, err := sql.Open("sqlite", "./sparq.db")
+	dbx, err := sql.Open("sqlite", "./sparq.db")
 	if err != nil {
 		log.Printf("Unable to open database: %v\n", err)
 		return
 	}
 
-	goose.SetBaseFS(sparq.Migrations)
+	goose.SetBaseFS(db.Migrations)
 
 	if err := goose.SetDialect("sqlite3"); err != nil {
 		log.Printf("Unable to migrate: %v\n", err)
@@ -64,8 +49,16 @@ func migrateExec(args []string) {
 	}
 
 	// get the current database schema version
-	dbver := GetDatabaseVersion(db)
-	migver := GetMigrationsVersion(db)
+	var dbver int64
+	if dbver, err = getDatabaseVersion(dbx); err != nil {
+		log.Printf("Unable to determine version: %v\n", err)
+		return
+	}
+	var migver int64
+	if migver, err = getMigrationsVersion(dbx); err != nil {
+		log.Printf("Unable to determine version: %v\n", err)
+		return
+	}
 
 	if dbver > migver {
 		die(fmt.Sprintf("Your sparq %s database version %d is newer than this binary %d, are you using the wrong version?", sparq.Version, dbver, migver))
@@ -77,7 +70,7 @@ func migrateExec(args []string) {
 	}
 
 	if cmd == "redo" {
-		if err := goose.Redo(db, "db/migrate"); err != nil {
+		if err := goose.Redo(dbx, "db/migrate"); err != nil {
 			log.Printf("Unable to migrate database: %v\n", err)
 			return
 		}
@@ -85,7 +78,7 @@ func migrateExec(args []string) {
 		if dbver == migver {
 			die("Your sparq database version is current.")
 		}
-		if err := goose.Up(db, "db/migrate"); err != nil {
+		if err := goose.Up(dbx, "db/migrate"); err != nil {
 			log.Printf("Unable to migrate database: %v\n", err)
 			return
 		}

@@ -10,6 +10,7 @@ import (
 	futil "github.com/contribsys/faktory/util"
 	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/core"
+	"github.com/contribsys/sparq/db"
 	"github.com/contribsys/sparq/util"
 	"github.com/pressly/goose/v3"
 )
@@ -22,7 +23,16 @@ func runExec(args []string) {
 	util.Debugf("Options: %v", opts)
 
 	_ = goose.SetDialect("sqlite3")
-	core.BootDB()
+	if err := db.BootDB(); err != nil {
+		util.Error("Unable to start Sparq", err)
+		return
+	}
+
+	util.Infof("Running sqlite %s", db.SqliteVersion())
+	if err := db.Seed(); err != nil {
+		util.Error("Unable to seed Sparq", err)
+		return
+	}
 
 	s, err := core.NewService(opts)
 	if err != nil {

@@ -10,12 +10,12 @@ import (
 
 	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/adminui"
+	"github.com/contribsys/sparq/db"
 	"github.com/contribsys/sparq/faktory"
 	"github.com/contribsys/sparq/faktoryui"
 	"github.com/contribsys/sparq/finger"
 	"github.com/contribsys/sparq/jobrunner"
 	"github.com/contribsys/sparq/util"
-	"github.com/jmoiron/sqlx"
 	_ "modernc.org/sqlite"
 )
 
@@ -31,7 +31,6 @@ type Options struct {
 // It holds all of the child services and orchestrates them.
 type Service struct {
 	Options
-	Database  *sqlx.DB
 	JobServer *faktory.Server
 	FaktoryUI *faktoryui.WebUI
 	AdminUI   *adminui.WebUI
@@ -43,26 +42,11 @@ type Service struct {
 }
 
 func NewService(opts Options) (*Service, error) {
-	util.Debugf("Database: %d, Migrations: %d", DatabaseVersion(), MigrationsVersion())
-
-	if DatabaseVersion() > MigrationsVersion() {
-		return nil, fmt.Errorf("Your sparq database version %d is too new, expecting <= %d. Are you accidentally running an old binary?", DatabaseVersion(), MigrationsVersion())
-	}
-
-	if DatabaseVersion() < MigrationsVersion() {
-		return nil, fmt.Errorf("Please migrate your sparq database, run `sparq migrate`")
-	}
-
-	var ver string
-	_ = db.QueryRow("select sqlite_version()").Scan(&ver)
-	util.Infof("Running sqlite %s", ver)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Service{
-		Database: db,
-		ctx:      ctx,
-		cancel:   cancel,
-		Options:  opts,
+		ctx:     ctx,
+		cancel:  cancel,
+		Options: opts,
 	}
 
 	js, _ := faktory.NewServer(faktory.Options{
@@ -97,7 +81,7 @@ func (s *Service) Run() error {
 	root.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(fmt.Sprintf("Welcome to Sparq %s!", sparq.Version)))
 	})
-	root.HandleFunc("/.well-known/webfinger", finger.HttpHandler(s.Database, s.Binding))
+	root.HandleFunc("/.well-known/webfinger", finger.HttpHandler(db.Database(), s.Binding))
 	root.Handle("/faktory/", s.FaktoryUI.App)
 	root.Handle("/admin/", s.AdminUI.App)
 
