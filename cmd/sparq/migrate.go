@@ -70,7 +70,7 @@ func migrateExec(args []string) {
 	}
 
 	if cmd == "redo" {
-		if err := goose.Redo(dbx, "db/migrate"); err != nil {
+		if err := goose.Redo(dbx, "migrate"); err != nil {
 			log.Printf("Unable to migrate database: %v\n", err)
 			return
 		}
@@ -78,7 +78,7 @@ func migrateExec(args []string) {
 		if dbver == migver {
 			die("Your sparq database version is current.")
 		}
-		if err := goose.Up(dbx, "db/migrate"); err != nil {
+		if err := goose.Up(dbx, "migrate"); err != nil {
 			log.Printf("Unable to migrate database: %v\n", err)
 			return
 		}
