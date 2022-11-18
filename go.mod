@@ -6,6 +6,7 @@ require (
 	github.com/go-redis/redis/v9 v9.0.0-rc.1
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/pressly/goose/v3 v3.7.0
+	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
 	modernc.org/sqlite v1.19.4
 )
 

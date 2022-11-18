@@ -4,32 +4,44 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/contribsys/sparq/model"
 	"github.com/contribsys/sparq/util"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
 	newUserInsert = `
 		insert into users (
-			id, sfid, nick, email, full_name, role_mask
-		) values (?, ?, ?, ?, ?, ?)
-		`
+			Id, Sfid, Nick, Email, FullName, RoleMask
+		) values (?, ?, ?, ?, ?, ?)`
+	newSecurityInsert = `
+		insert into user_securities (
+			UserId, PasswordHash, PublicKey, PrivateKey
+		) values (?, ?, ?, ?)`
 )
 
 func Seed() error {
+	fmt.Println("Seeding...")
+
 	admin := map[string]interface{}{}
 	row := db.QueryRowx("select * from users where id = ?", 1)
 	err := row.MapScan(admin)
 	if err == sql.ErrNoRows {
 		sf := util.NewSnowflake()
-		_, err := db.Exec(newUserInsert, 1, sf.NextID(), "admin", "admin@localhost.dev", "Sparq Admin", model.RoleAll)
+		_, err := db.Exec(newUserInsert, 1, sf.NextID(), "admin", "admin@localhost.dev", "Sparq Admin", -1)
 		if err != nil {
 			return err
 		}
+		hash, err := bcrypt.GenerateFromPassword([]byte("sparq123"), 12)
+		if err != nil {
+			return err
+		}
+		pub, priv := util.GenerateKeys()
+		_, err = db.Exec(newSecurityInsert, 1, hash, pub, priv)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
-	fmt.Printf("%+v", admin)
 	return err
-	// if err != nil {
-	// panic(err)
-	// }
 }

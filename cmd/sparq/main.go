@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/contribsys/sparq"
+	"github.com/contribsys/sparq/db"
+	"github.com/contribsys/sparq/util"
 )
 
 func logPreamble() {
@@ -61,7 +63,10 @@ func main() {
 	case "run":
 		runExec(args)
 	case "migrate":
-		migrateExec(args)
+		err := db.MigrateExec(args)
+		if err != nil {
+			util.Error("Error migrating", err)
+		}
 	default:
 		usage()
 	}

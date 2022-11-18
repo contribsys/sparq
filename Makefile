@@ -4,7 +4,7 @@
 	go generate ./...
 
 test: generate
-	go test ./...
+	go test github.com/contribsys/sparq/finger
 
 int:
 	go run test/main.go
@@ -25,6 +25,6 @@ build:
 	go build -o sparq ./cmd/sparq
 
 clean:
-	rm redis.log faktory.rdb
+	rm -f redis.log faktory.rdb sparq.db
 
 .PHONY: build run test generate db up redo clean

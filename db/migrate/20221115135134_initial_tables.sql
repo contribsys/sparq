@@ -1,13 +1,31 @@
 -- +goose Up
 create table if not exists `users` (
-  id         integer primary key,
-  sfid       string not null, -- snowflake id
-  full_name   string not null,
-  nick       string not null,
-  email      string not null,
-  role_mask   integer not null,
-  created_at  timestamp not null default current_timestamp,
-  updated_at  timestamp not null default current_timestamp
+  Id         integer primary key,
+  Sfid       string not null, -- snowflake id
+  FullName   string not null,
+  Nick       string not null,
+  Email      string not null,
+  RoleMask   integer not null,
+  CreatedAt  timestamp not null default current_timestamp,
+  UpdatedAt  timestamp not null default current_timestamp
+);
+create table if not exists `user_attributes` (
+  Id         integer primary key,
+  UserId     integer not null,
+  Name       string not null,
+  Value      string not null,
+  FOREIGN KEY (UserId) 
+      REFERENCES users (id) 
+         ON DELETE CASCADE 
+);
+create table if not exists `user_securities` (
+  UserId        integer primary key,
+  PasswordHash  string not null,
+  PublicKey     string not null,
+  PrivateKey    string not null,
+  FOREIGN KEY (UserId) 
+      REFERENCES users (id) 
+         ON DELETE CASCADE 
 );
 create table if not exists `collections` (
   id integer primary key,
@@ -20,7 +38,6 @@ create table if not exists `collections` (
   FOREIGN KEY (owner_id) 
       REFERENCES users (id) 
          ON DELETE CASCADE 
-         ON UPDATE NO ACTION
 );
 create table if not exists `posts` (
   id integer primary key,
@@ -52,4 +69,6 @@ create table if not exists `remoteusers` (
 drop table remoteusers;
 drop table posts;
 drop table collections;
+drop table user_securities;
+drop table user_attributes;
 drop table users;
