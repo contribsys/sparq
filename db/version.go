@@ -35,13 +35,13 @@ var (
 	}
 )
 
-func BootDB() error {
-	return OpenDB(Defaults)
+func TestDB(filename string) (func(), error) {
+	return InitDB(filename, true)
 }
 
 // Used to initialize a new database for tests
-func InitDB(name string) (func(), error) {
-	fname := "./sparq." + name + ".db"
+func InitDB(filename string, remove bool) (func(), error) {
+	fname := fmt.Sprintf("./sparq.%s.db", filename)
 	err := OpenDB(DatabaseOptions{
 		Filename:         fname,
 		SkipVersionCheck: true,
@@ -60,7 +60,9 @@ func InitDB(name string) (func(), error) {
 	return func() {
 		db.Close()
 		db = nil
-		_ = os.Remove(fname)
+		if remove {
+			_ = os.Remove(fname)
+		}
 	}, nil
 }
 

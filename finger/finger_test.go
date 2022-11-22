@@ -10,21 +10,21 @@ import (
 )
 
 func TestFinger(t *testing.T) {
-	stopper, err := db.InitDB("finger")
+	stopper, err := db.TestDB("finger")
 	assert.NoError(t, err)
 	defer stopper()
 
-	fn := HttpHandler(db.Database(), "localhost.dev")
+	fn := webfingerHandler(db.Database())
 
 	withQuery("", func(w *httptest.ResponseRecorder, req *http.Request) {
 		fn(w, req)
 		assert.Equal(t, 400, w.Code)
 		assert.Contains(t, w.Body.String(), "Invalid input")
 	})
-	withQuery("?resource=admin@localhost.dev", func(w *httptest.ResponseRecorder, req *http.Request) {
+	withQuery("?resource=acct:admin@localhost.dev", func(w *httptest.ResponseRecorder, req *http.Request) {
 		fn(w, req)
 		assert.Equal(t, 200, w.Code)
-		assert.Contains(t, w.Body.String(), "END PUBLIC KEY")
+		assert.Contains(t, w.Body.String(), "https://localhost.dev/users/admin")
 	})
 }
 

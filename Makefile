@@ -4,7 +4,8 @@
 	go generate ./...
 
 test: generate
-	go test github.com/contribsys/sparq/finger
+	go test github.com/contribsys/sparq/finger \
+					github.com/contribsys/sparq/public
 
 int:
 	go run test/main.go
@@ -12,11 +13,17 @@ int:
 db:
 	sqlite3 sparq.db
 
+pdb:
+	sqlite3 sparq.social.contribsys.com.db
+
 up:
 	go run ./cmd/sparq migrate
 
 redo:
 	go run ./cmd/sparq migrate redo
+
+prod:
+	go run ./cmd/sparq run -l debug -h social.contribsys.com
 
 run:
 	go run ./cmd/sparq run -l debug
@@ -26,5 +33,9 @@ build:
 
 clean:
 	rm -f redis.log faktory.rdb sparq.db
+
+tunnel:
+	open http://localhost:9494
+	ssh -R 9494:localhost:9494 mike@social.contribsys.com
 
 .PHONY: build run test generate db up redo clean

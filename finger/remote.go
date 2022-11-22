@@ -55,7 +55,6 @@ func RemoteLookup(handle string, fn resolverFn) (data string, err error) {
 	if err != nil {
 		return
 	}
-	fmt.Printf("%+v\n", result)
 
 	var href string
 	// iterate over webfinger links and find the one with

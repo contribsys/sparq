@@ -23,16 +23,15 @@ func runExec(args []string) {
 	util.Debugf("Options: %v", opts)
 
 	_ = goose.SetDialect("sqlite3")
-	if err := db.BootDB(); err != nil {
+	db.InstanceHostname = opts.Hostname
+	stopper, err := db.InitDB(opts.Hostname, false)
+	if err != nil {
 		util.Error("Unable to start Sparq", err)
 		return
 	}
+	defer stopper()
 
 	util.Infof("Running sqlite %s", db.SqliteVersion())
-	if err := db.Seed(); err != nil {
-		util.Error("Unable to seed Sparq", err)
-		return
-	}
 
 	s, err := core.NewService(opts)
 	if err != nil {

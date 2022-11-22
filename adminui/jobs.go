@@ -25,7 +25,7 @@ func Register(js sparq.JobService) {
 }
 
 func AType(ctx context.Context, name string) error {
-	fmt.Println("Hello", name)
+	fmt.Println("Hello!", name)
 	helper := jobrunner.HelperFor(ctx)
 	return helper.With(func(p sparq.Pusher) error {
 		return p.Push(ctx, NewJob("btype", "low", name))

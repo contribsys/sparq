@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/contribsys/sparq/db"
+	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
@@ -16,28 +17,19 @@ var (
 	ErrNotFound = errors.New("User not found")
 )
 
-type actor struct {
-	Nick      string `db:"Nick"`
-	PublicKey string `db:"PublicKey"`
+type result struct {
+	Nick string `db:"Nick"`
+	Acct string
 }
 
-func (a *actor) Inbox() string {
-	return db.InstanceHostname + "/@" + a.Nick + "/inbox"
+func (r *result) URI() string {
+	return "https://" + db.InstanceHostname + "/users/" + r.Nick
 }
 
-func (a *actor) Domain() string {
-	return db.InstanceHostname
-}
-
-func (a *actor) URI() string {
-	return db.InstanceHostname + "/@" + a.Nick
-}
-
-func lookup(ctx context.Context, db *sqlx.DB, username, host string) (*actor, error) {
+func fingerLookup(ctx context.Context, db *sqlx.DB, username, host string) (*result, error) {
 	// user := map[string]any{}
-	var a actor
-	err := db.Get(&a, `
-		select Nick, PublicKey from users join user_securities on users.Id = user_securities.UserId where lower(Nick) = ?`,
+	var r result
+	err := db.Get(&r, `select Nick from users where lower(Nick) = ?`,
 		strings.ToLower(username))
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound
@@ -45,22 +37,19 @@ func lookup(ctx context.Context, db *sqlx.DB, username, host string) (*actor, er
 	if err != nil {
 		return nil, errors.Wrap(err, "sql")
 	}
-	return &a, nil
+	r.Acct = username + "@" + host
+
+	return &r, nil
 }
 
 var (
-	fingerResponseText = `
-{
-	"@context": ["https://www.w3.org/ns/activitystreams", "https://w3id.org/security/v1"],
-	"id": "https://{{.URI}}",
-	"type": "Person",
-	"preferredUsername": "{{.Nick}}",
-	"inbox": "https://{{.Inbox}}",
-	"publicKey": {
-		"id": "https://{{.URI}}#main-key",
-		"owner": "https://{{.URI}}",
-		"publicKeyPem": "{{.PublicKey}}"
-	}
+	fingerResponseText = `{
+	"subject": "acct:{{.Acct}}",
+	"links": [{
+		"rel": "self",
+		"type": "application/activity+json",
+		"href": "{{.URI}}"
+	}]
 }`
 
 	/*
@@ -78,28 +67,33 @@ var (
 	fingerResponseTemplate = template.Must(template.New("fingerResponse").Parse(fingerResponseText))
 )
 
-func HttpHandler(db *sqlx.DB, hostname string) http.HandlerFunc {
+func webfingerHandler(dbx *sqlx.DB) http.HandlerFunc {
 	return func(resp http.ResponseWriter, req *http.Request) {
 		username := req.URL.Query().Get("resource")
-		if username == "" || !strings.HasSuffix(username, "@"+hostname) {
+		if username == "" ||
+			!strings.HasPrefix(username, "acct:") ||
+			!strings.HasSuffix(username, "@"+db.InstanceHostname) {
 			http.Error(resp, "Invalid input", http.StatusBadRequest)
 			return
 		}
 
-		parts := strings.Split(username, "@")
+		parts := strings.Split(username[5:], "@")
 
-		result, err := lookup(req.Context(), db, parts[0], parts[1])
+		result, err := fingerLookup(req.Context(), dbx, parts[0], parts[1])
 		if err != nil {
 			http.Error(resp, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		// fmt.Println(result)
-
+		resp.Header().Add("Content-Type", "application/jrd+json")
 		err = fingerResponseTemplate.Execute(resp, result)
 		if err != nil {
 			http.Error(resp, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
+}
+
+func AddPublicEndpoints(mux *mux.Router) {
+	mux.HandleFunc("/.well-known/webfinger", webfingerHandler(db.Database()))
 }

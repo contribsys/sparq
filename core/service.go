@@ -8,12 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/adminui"
-	"github.com/contribsys/sparq/db"
 	"github.com/contribsys/sparq/faktory"
 	"github.com/contribsys/sparq/faktoryui"
-	"github.com/contribsys/sparq/finger"
 	"github.com/contribsys/sparq/jobrunner"
 	"github.com/contribsys/sparq/util"
 	_ "modernc.org/sqlite"
@@ -51,7 +48,7 @@ func NewService(opts Options) (*Service, error) {
 
 	js, _ := faktory.NewServer(faktory.Options{
 		StorageDirectory: opts.StorageDirectory,
-		RedisSock:        "sparq.redis.sock",
+		RedisSock:        fmt.Sprintf("sparq.redis.%s.sock", opts.Hostname),
 	})
 	err := js.Run(ctx) // does not block
 	if err != nil {
@@ -77,26 +74,11 @@ func (s *Service) Run() error {
 	// This is the context which signals that we are starting
 	// the shutdown process
 
-	root := http.NewServeMux()
-	root.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(fmt.Sprintf("Welcome to Sparq %s!", sparq.Version)))
-	})
-	root.HandleFunc("/.well-known/webfinger", finger.HttpHandler(db.Database(), s.Binding))
-	root.Handle("/faktory/", s.FaktoryUI.App)
-	root.Handle("/admin/", s.AdminUI.App)
+	s.https = buildServer(s)
 
-	ht := &http.Server{
-		Addr:           s.Binding,
-		ReadTimeout:    2 * time.Second,
-		WriteTimeout:   10 * time.Second,
-		MaxHeaderBytes: 1 << 16,
-		Handler:        root,
-	}
-	s.https = ht
-
+	util.Infof("Web now running at %s", s.Binding)
 	go func() {
-		util.Infof("Web now running at %s", s.Binding)
-		err := ht.ListenAndServe()
+		err := s.https.ListenAndServe()
 		if err != http.ErrServerClosed {
 			util.Error("web server crashed", err)
 		}
@@ -107,6 +89,7 @@ func (s *Service) Run() error {
 		return err
 	}
 
+	fmt.Printf("Welcome to the Fediverse, \033[32m%s\033[0m\n", s.Options.Hostname)
 	<-s.ctx.Done()
 	s.shutdown(20 * time.Second)
 	return nil
