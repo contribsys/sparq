@@ -1,8 +1,9 @@
-package finger
+package wellknown
 
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"html/template"
 	"net/http"
 	"strings"
@@ -94,6 +95,64 @@ func webfingerHandler(dbx *sqlx.DB) http.HandlerFunc {
 	}
 }
 
+func nodeinfoHandler(dbx *sqlx.DB) http.HandlerFunc {
+	return func(resp http.ResponseWriter, req *http.Request) {
+		username := req.URL.Query().Get("resource")
+		if username == "" ||
+			!strings.HasPrefix(username, "acct:") ||
+			!strings.HasSuffix(username, "@"+db.InstanceHostname) {
+			http.Error(resp, "Invalid input", http.StatusBadRequest)
+			return
+		}
+
+		parts := strings.Split(username[5:], "@")
+
+		result, err := fingerLookup(req.Context(), dbx, parts[0], parts[1])
+		if err != nil {
+			http.Error(resp, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		resp.Header().Add("Content-Type", "application/jrd+json")
+		err = fingerResponseTemplate.Execute(resp, result)
+		if err != nil {
+			http.Error(resp, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
 func AddPublicEndpoints(mux *mux.Router) {
 	mux.HandleFunc("/.well-known/webfinger", webfingerHandler(db.Database()))
+	mux.HandleFunc("/.well-known/nodeinfo", func(resp http.ResponseWriter, req *http.Request) {
+		resp.Header().Add("Content-Type", "application/json")
+		resp.WriteHeader(200)
+		_, _ = resp.Write([]byte(`{"links":[{"rel":"http://nodeinfo.diaspora.software/ns/schema/2.1","href":"https://` + db.InstanceHostname + `/nodeinfo/2.1"}]}`))
+	})
+	mux.HandleFunc("/nodeinfo/2.1", func(resp http.ResponseWriter, req *http.Request) {
+		resp.Header().Add("Content-Type", "application/json")
+		resp.Header().Add("Cache-Control", "public, max-age=600")
+
+		var userCount int
+		err := db.Database().QueryRow("select count(*) from users").Scan(&userCount)
+		if err != nil {
+			http.Error(resp, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		_, _ = resp.Write([]byte(fmt.Sprintf(`{
+			"version":"2.1",
+			"software": {
+				"name":"sparq","version":"0.0.1",
+				"repository":"tbd","homepage":"tbd",
+			},
+			"protocols": ["activitypub"],
+			"services": {"outbound":[],"inbound":[]},
+			"usage": {
+				"users": {"total": %d,"activeMonth":0,"activeHalfyear":0},
+				"localPosts": 0,
+				"localComments": 0
+			},
+			"openRegistrations": true,
+			"metadata": {}}`, userCount)))
+	})
 }

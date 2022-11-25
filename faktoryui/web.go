@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/contribsys/faktory/client"
 	"github.com/contribsys/faktory/util"
 	"github.com/contribsys/sparq/faktory"
+	"github.com/gorilla/mux"
 	"github.com/justinas/nosurf"
 )
 
@@ -64,54 +64,45 @@ func init() {
 }
 
 type WebUI struct {
-	Options     Options
 	Server      *faktory.Server
-	App         *http.ServeMux
 	Title       string
-	ExtraCssUrl string
 	StartedAt   time.Time
 	Binding     string
-}
-
-type Options struct {
+	enabledCSRF bool
 }
 
 func NewWeb(s *faktory.Server, binding string) *WebUI {
 	ui := &WebUI{
-		Binding:   binding,
-		Server:    s,
-		Title:     "Sparq | " + client.Name,
-		StartedAt: time.Now(),
+		Binding:     binding,
+		Server:      s,
+		Title:       "Sparq | Faktory",
+		StartedAt:   time.Now(),
+		enabledCSRF: true,
 	}
+	return ui
+}
 
-	app := http.NewServeMux()
-	app.HandleFunc("/static/", staticHandler)
-	app.HandleFunc("/stats", DebugLog(ui, statsHandler))
+func (ui *WebUI) Embed(root *mux.Router, prefix string) *mux.Router {
+	app := root
+	if prefix != "" {
+		app = root.PathPrefix(prefix).Subrouter()
+	}
+	app.PathPrefix("/static/").Handler(http.StripPrefix(prefix, staticHandler))
+	app.HandleFunc("/stats", DebugOnlyLog(ui, statsHandler))
 
 	app.HandleFunc("/", Log(ui, GetOnly(indexHandler)))
 	app.HandleFunc("/queues", Log(ui, queuesHandler))
-	app.HandleFunc("/queues/", Log(ui, queueHandler))
+	app.HandleFunc("/queues/{name}", Log(ui, queueHandler))
 	app.HandleFunc("/retries", Log(ui, retriesHandler))
-	app.HandleFunc("/retries/", Log(ui, retryHandler))
+	app.HandleFunc("/retries/{name}", Log(ui, retryHandler))
 	app.HandleFunc("/scheduled", Log(ui, scheduledHandler))
-	app.HandleFunc("/scheduled/", Log(ui, scheduledJobHandler))
+	app.HandleFunc("/scheduled/{name}", Log(ui, scheduledJobHandler))
 	app.HandleFunc("/morgue", Log(ui, morgueHandler))
-	app.HandleFunc("/morgue/", Log(ui, deadHandler))
+	app.HandleFunc("/morgue/{name}", Log(ui, deadHandler))
 	app.HandleFunc("/busy", Log(ui, busyHandler))
 	app.HandleFunc("/debug", Log(ui, debugHandler))
 	app.HandleFunc("/health", healthHandler(ui))
-
-	// app.HandleFunc("/debug/pprof/", pprof.Index)
-	// app.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	// app.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	// app.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-	// app.HandleFunc("/debug/pprof/trace", pprof.Trace)
-
-	proxy := http.NewServeMux()
-	proxy.HandleFunc("/", Proxy(app))
-	ui.App = proxy
-
-	return ui
+	return root
 }
 
 func healthHandler(ui *WebUI) func(w http.ResponseWriter, r *http.Request) {
@@ -132,32 +123,6 @@ func healthHandler(ui *WebUI) func(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func Proxy(app *http.ServeMux) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		///////
-		// Support transparent proxying with nginx's proxy_pass.
-		// Note that it's super critical that location == X-Script-Name
-		// Example config:
-		/*
-		   location /faktory {
-		       proxy_set_header X-Script-Name /faktory;
-
-		       proxy_pass   http://127.0.0.1:7420;
-		       proxy_set_header Host $host;
-		       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-		       proxy_set_header X-Scheme $scheme;
-		       proxy_set_header X-Real-IP $remote_addr;
-		   }
-		*/
-
-		prefix := "/faktory"
-		r.Header.Set("X-Script-Name", prefix)
-		r.RequestURI = strings.Replace(r.RequestURI, prefix, "", 1)
-		r.URL.Path = strings.Replace(r.URL.Path, prefix, "", 1)
-		app.ServeHTTP(w, r)
-	}
-}
-
 func Layout(w io.Writer, req *http.Request, yield func()) {
 	ego_layout(w, req, yield)
 }
@@ -166,28 +131,18 @@ func Layout(w io.Writer, req *http.Request, yield func()) {
 
 // The stats handler is hit a lot and adds much noise to the log,
 // quiet it down.
-func DebugLog(ui *WebUI, pass http.HandlerFunc) http.HandlerFunc {
+func DebugOnlyLog(ui *WebUI, pass http.HandlerFunc) http.HandlerFunc {
 	return setup(ui, pass, true)
 }
 
 func Log(ui *WebUI, pass http.HandlerFunc) http.HandlerFunc {
-	return protect(true, setup(ui, pass, false))
+	return protect(ui.enabledCSRF, setup(ui, pass, false))
 }
 
 func setup(ui *WebUI, pass http.HandlerFunc, debug bool) http.HandlerFunc {
 	genericSetup := func(w http.ResponseWriter, r *http.Request) {
-		// this is the entry point for every dynamic request
-		// static assets bypass all this hubbub
-		start := time.Now()
-
 		dctx := NewContext(ui, r, w)
-
 		pass(w, r.WithContext(dctx))
-		if debug {
-			util.Debugf("%s %s %v", r.Method, r.RequestURI, time.Since(start))
-		} else {
-			util.Infof("%s %s %v", r.Method, r.RequestURI, time.Since(start))
-		}
 	}
 	return genericSetup
 }
@@ -233,7 +188,7 @@ func PostOnly(h http.HandlerFunc) http.HandlerFunc {
 
 func cache(h http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Cache-Control", "public, max-age=3600")
+		// w.Header().Add("Cache-Control", "public, max-age=3600")
 		h.ServeHTTP(w, r)
 	}
 }

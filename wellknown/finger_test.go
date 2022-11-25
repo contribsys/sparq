@@ -1,4 +1,4 @@
-package finger
+package wellknown
 
 import (
 	"net/http"

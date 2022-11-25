@@ -5,6 +5,7 @@
 
 test: generate
 	go test github.com/contribsys/sparq/finger \
+					github.com/contribsys/sparq/faktoryui \
 					github.com/contribsys/sparq/public
 
 int:
@@ -22,13 +23,13 @@ up:
 redo:
 	go run ./cmd/sparq migrate redo
 
-prod:
+prod: generate
 	go run ./cmd/sparq run -l debug -h social.contribsys.com
 
-run:
+run: generate
 	go run ./cmd/sparq run -l debug
 
-build:
+build: generate
 	go build -o sparq ./cmd/sparq
 
 clean:

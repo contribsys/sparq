@@ -26,10 +26,6 @@ func productTitle(req *http.Request) string {
 }
 
 func extraCss(req *http.Request) string {
-	url := ctx(req).webui.ExtraCssUrl
-	if url != "" && strings.HasPrefix(url, "http") {
-		return fmt.Sprintf("<link href='%s' media='screen' rel='stylesheet' type='text/css'/>", url)
-	}
 	return ""
 }
 

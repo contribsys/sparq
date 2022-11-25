@@ -3,6 +3,7 @@ package faktoryui
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -10,17 +11,18 @@ import (
 
 	"github.com/contribsys/faktory/util"
 	"github.com/contribsys/sparq/faktory"
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestLiveServer(t *testing.T) {
-	bootRuntime(t, "webui", func(ui *WebUI, s *faktory.Server, t *testing.T) {
+	bootRuntime(t, "webui", func(ui *WebUI, s *faktory.Server, t *testing.T, dispatch http.HandlerFunc) {
 		t.Run("StaticAssets", func(t *testing.T) {
 			req, err := ui.NewRequest("GET", "http://localhost:7420/static/application.js", nil)
 			assert.NoError(t, err)
 
 			w := httptest.NewRecorder()
-			staticHandler(w, req)
+			dispatch(w, req)
 			assert.Equal(t, 200, w.Code)
 			assert.True(t, strings.Contains(w.Body.String(), "Fuzzy"), w.Body.String())
 		})
@@ -30,7 +32,7 @@ func TestLiveServer(t *testing.T) {
 			assert.NoError(t, err)
 
 			w := httptest.NewRecorder()
-			debugHandler(w, req)
+			dispatch(w, req)
 			assert.Equal(t, 200, w.Code)
 			assert.True(t, strings.Contains(w.Body.String(), "Disk Usage"), w.Body.String())
 		})
@@ -84,7 +86,7 @@ func TestLiveServer(t *testing.T) {
 	})
 }
 
-func bootRuntime(t *testing.T, name string, fn func(*WebUI, *faktory.Server, *testing.T)) {
+func bootRuntime(t *testing.T, name string, fn func(*WebUI, *faktory.Server, *testing.T, http.HandlerFunc)) {
 	dir := fmt.Sprintf("/tmp/faktory-test-%s", name)
 	defer os.RemoveAll(dir)
 
@@ -96,7 +98,8 @@ func bootRuntime(t *testing.T, name string, fn func(*WebUI, *faktory.Server, *te
 		StorageDirectory: dir,
 	})
 	if err != nil {
-		panic(err)
+		fmt.Println("Panic: " + err.Error())
+		return
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -104,15 +107,31 @@ func bootRuntime(t *testing.T, name string, fn func(*WebUI, *faktory.Server, *te
 
 	err = s.Run(ctx)
 	if err != nil {
-		panic(err)
+		fmt.Println("Panic: " + err.Error())
+		return
 	}
 
+	root := mux.NewRouter()
 	web := NewWeb(s, b)
+	web.enabledCSRF = false
+	web.Embed(root, "")
+	root.NotFoundHandler = NotFound()
 
-	fn(web, s, t)
+	fn(web, s, t, func(w http.ResponseWriter, r *http.Request) {
+		root.ServeHTTP(w, r)
+	})
 
 	s.Store().Flush(context.Background())
 	s.Close()
+}
+
+func NotFound() http.Handler {
+	pass := http.NotFoundHandler()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		pass.ServeHTTP(w, r)
+		fmt.Printf("\033[31m404\033[0m %s %s\n", r.Method, r.RequestURI)
+		// util.Infof("[404] %s %s %+v", r.Method, r.RequestURI, r.Header)
+	})
 }
 
 func fakeJob() (string, []byte) {

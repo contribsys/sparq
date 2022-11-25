@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strconv"
+
+	"github.com/gorilla/mux"
 )
 
 func statsHandler(w http.ResponseWriter, r *http.Request) {
@@ -39,18 +40,13 @@ func queuesHandler(w http.ResponseWriter, r *http.Request) {
 	ego_listQueues(w, r)
 }
 
-var (
-	LAST_ELEMENT = regexp.MustCompile(`/([^/]+)\z`)
-)
-
 func queueHandler(w http.ResponseWriter, r *http.Request) {
-	name := LAST_ELEMENT.FindStringSubmatch(r.URL.Path)
-	if name == nil {
+	name := mux.Vars(r)["name"]
+	if name == "" {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
 	}
-	queueName := name[1]
-	q, ok := ctx(r).Store().ExistingQueue(r.Context(), queueName)
+	q, ok := ctx(r).Store().ExistingQueue(r.Context(), name)
 	if !ok {
 		Redirect(w, r, "/queues", http.StatusFound)
 		return
@@ -106,7 +102,7 @@ func queueHandler(w http.ResponseWriter, r *http.Request) {
 			Redirect(w, r, "/queues", http.StatusFound)
 			return
 		}
-		Redirect(w, r, "/queues/"+queueName, http.StatusFound)
+		Redirect(w, r, "/queues/"+name, http.StatusFound)
 		return
 	}
 
@@ -156,12 +152,12 @@ func retriesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func retryHandler(w http.ResponseWriter, r *http.Request) {
-	name := LAST_ELEMENT.FindStringSubmatch(r.RequestURI)
-	if name == nil {
+	name := mux.Vars(r)["name"]
+	if name == "" {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
 	}
-	key, err := url.QueryUnescape(name[1])
+	key, err := url.QueryUnescape(name)
 	if err != nil {
 		http.Error(w, "Invalid URL input", http.StatusBadRequest)
 		return
@@ -236,12 +232,12 @@ func scheduledHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func scheduledJobHandler(w http.ResponseWriter, r *http.Request) {
-	name := LAST_ELEMENT.FindStringSubmatch(r.RequestURI)
-	if name == nil {
+	name := mux.Vars(r)["name"]
+	if name == "" {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
 	}
-	key, err := url.QueryUnescape(name[1])
+	key, err := url.QueryUnescape(name)
 	if err != nil {
 		http.Error(w, "Invalid URL input", http.StatusBadRequest)
 		return
@@ -312,12 +308,12 @@ func morgueHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func deadHandler(w http.ResponseWriter, r *http.Request) {
-	name := LAST_ELEMENT.FindStringSubmatch(r.RequestURI)
-	if name == nil {
+	name := mux.Vars(r)["name"]
+	if name == "" {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
 	}
-	key, err := url.QueryUnescape(name[1])
+	key, err := url.QueryUnescape(name)
 	if err != nil {
 		http.Error(w, "Invalid URL input", http.StatusBadRequest)
 		return

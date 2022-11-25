@@ -19,14 +19,14 @@ import (
 )
 
 func TestPages(t *testing.T) {
-	bootRuntime(t, "pages", func(ui *WebUI, s *faktory.Server, t *testing.T) {
+	bootRuntime(t, "pages", func(ui *WebUI, s *faktory.Server, t *testing.T, dispatch http.HandlerFunc) {
 
 		t.Run("Index", func(t *testing.T) {
 			req, err := ui.NewRequest("GET", "http://localhost:7420/", nil)
 			assert.NoError(t, err)
 
 			w := httptest.NewRecorder()
-			indexHandler(w, req)
+			dispatch(w, req)
 			assert.Equal(t, 200, w.Code)
 			assert.True(t, strings.Contains(w.Body.String(), "uptime_in_days"), w.Body.String())
 			assert.True(t, strings.Contains(w.Body.String(), "idle"), w.Body.String())
@@ -51,7 +51,7 @@ func TestPages(t *testing.T) {
 			}
 
 			w := httptest.NewRecorder()
-			statsHandler(w, req)
+			dispatch(w, req)
 			assert.Equal(t, 200, w.Code)
 			assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 
@@ -85,7 +85,7 @@ func TestPages(t *testing.T) {
 			assert.NoError(t, err)
 
 			w := httptest.NewRecorder()
-			queuesHandler(w, req)
+			dispatch(w, req)
 			assert.Equal(t, 200, w.Code)
 			assert.True(t, strings.Contains(w.Body.String(), "default"), w.Body.String())
 			assert.False(t, strings.Contains(w.Body.String(), "foobar"), w.Body.String())
@@ -110,7 +110,7 @@ func TestPages(t *testing.T) {
 			assert.EqualValues(t, 1, q.Size(req.Context()))
 
 			w := httptest.NewRecorder()
-			queueHandler(w, req)
+			dispatch(w, req)
 			assert.Equal(t, 200, w.Code)
 			assert.True(t, strings.Contains(w.Body.String(), "1l23j12l3"), w.Body.String())
 			assert.True(t, strings.Contains(w.Body.String(), "foobar"), w.Body.String())
@@ -118,14 +118,15 @@ func TestPages(t *testing.T) {
 			payload := url.Values{
 				"action": {"delete"},
 			}
-			req, err = ui.NewRequest("POST", "http://localhost:7420/queue/"+q.Name(), strings.NewReader(payload.Encode()))
+			req, err = ui.NewRequest("POST", "http://localhost:7420/queues/"+q.Name(), strings.NewReader(payload.Encode()))
 			assert.NoError(t, err)
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			w = httptest.NewRecorder()
-			queueHandler(w, req)
+			dispatch(w, req)
 
-			assert.EqualValues(t, 0, q.Size(req.Context()))
+			assert.Equal(t, w.Body.String(), "")
 			assert.Equal(t, 302, w.Code)
+			assert.EqualValues(t, 0, q.Size(req.Context()))
 		})
 
 		t.Run("Retries", func(t *testing.T) {
@@ -158,7 +159,7 @@ func TestPages(t *testing.T) {
 			keys := string(key)
 
 			w := httptest.NewRecorder()
-			retriesHandler(w, req)
+			dispatch(w, req)
 			assert.Equal(t, 200, w.Code)
 			assert.True(t, strings.Contains(w.Body.String(), jid1), w.Body.String())
 			assert.True(t, strings.Contains(w.Body.String(), jid2), w.Body.String())
@@ -180,7 +181,7 @@ func TestPages(t *testing.T) {
 			assert.NoError(t, err)
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			w = httptest.NewRecorder()
-			retriesHandler(w, req)
+			dispatch(w, req)
 
 			assert.Equal(t, "", w.Body.String())
 			assert.Equal(t, 302, w.Code)
@@ -203,7 +204,7 @@ func TestPages(t *testing.T) {
 			assert.NoError(t, err)
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			w = httptest.NewRecorder()
-			retriesHandler(w, req)
+			dispatch(w, req)
 
 			assert.Equal(t, "", w.Body.String())
 			assert.Equal(t, 302, w.Code)
@@ -229,7 +230,7 @@ func TestPages(t *testing.T) {
 			assert.NoError(t, err)
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			w = httptest.NewRecorder()
-			retriesHandler(w, req)
+			dispatch(w, req)
 
 			assert.Equal(t, "", w.Body.String())
 			assert.Equal(t, 302, w.Code)
@@ -252,7 +253,7 @@ func TestPages(t *testing.T) {
 			assert.NoError(t, err)
 
 			w := httptest.NewRecorder()
-			retryHandler(w, req)
+			dispatch(w, req)
 			assert.Equal(t, 200, w.Code)
 			assert.True(t, strings.Contains(w.Body.String(), jid), w.Body.String())
 		})
@@ -279,7 +280,7 @@ func TestPages(t *testing.T) {
 			keys := string(key)
 
 			w := httptest.NewRecorder()
-			scheduledHandler(w, req)
+			dispatch(w, req)
 			assert.Equal(t, 200, w.Code)
 			assert.True(t, strings.Contains(w.Body.String(), "SomeWorker"), w.Body.String())
 			assert.True(t, strings.Contains(w.Body.String(), keys), w.Body.String())
@@ -293,7 +294,7 @@ func TestPages(t *testing.T) {
 			assert.NoError(t, err)
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			w = httptest.NewRecorder()
-			scheduledHandler(w, req)
+			dispatch(w, req)
 
 			assert.Equal(t, 302, w.Code)
 			assert.EqualValues(t, 0, q.Size(req.Context()))
@@ -315,7 +316,7 @@ func TestPages(t *testing.T) {
 			assert.NoError(t, err)
 
 			w := httptest.NewRecorder()
-			scheduledJobHandler(w, req)
+			dispatch(w, req)
 			assert.Equal(t, 200, w.Code)
 			assert.True(t, strings.Contains(w.Body.String(), jid), w.Body.String())
 		})
@@ -334,7 +335,7 @@ func TestPages(t *testing.T) {
 			assert.NoError(t, err)
 
 			w := httptest.NewRecorder()
-			morgueHandler(w, req)
+			dispatch(w, req)
 			assert.Equal(t, 200, w.Code)
 			assert.True(t, strings.Contains(w.Body.String(), jid), w.Body.String())
 		})
@@ -354,7 +355,7 @@ func TestPages(t *testing.T) {
 			assert.NoError(t, err)
 
 			w := httptest.NewRecorder()
-			deadHandler(w, req)
+			dispatch(w, req)
 			assert.Equal(t, 200, w.Code)
 			assert.True(t, strings.Contains(w.Body.String(), jid), w.Body.String())
 
@@ -367,7 +368,7 @@ func TestPages(t *testing.T) {
 			assert.NoError(t, err)
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			w = httptest.NewRecorder()
-			morgueHandler(w, req)
+			dispatch(w, req)
 
 			assert.Equal(t, 302, w.Code)
 			assert.Equal(t, "", w.Body.String())
@@ -379,7 +380,7 @@ func TestPages(t *testing.T) {
 			assert.NoError(t, err)
 
 			w := httptest.NewRecorder()
-			busyHandler(w, req)
+			dispatch(w, req)
 			assert.Equal(t, 200, w.Code)
 		})
 

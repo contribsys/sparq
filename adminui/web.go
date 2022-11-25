@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/contribsys/faktory/util"
 	"github.com/contribsys/sparq"
+	"github.com/gorilla/mux"
 	"github.com/justinas/nosurf"
 )
 
@@ -62,23 +62,27 @@ func init() {
 
 type WebUI struct {
 	sparq.Pusher
-	App         *http.ServeMux
-	Title       string
-	ExtraCssUrl string
 	StartedAt   time.Time
 	Binding     string
+	enabledCSRF bool
 }
 
 func NewWeb(p sparq.Pusher, binding string) *WebUI {
 	ui := &WebUI{
-		Pusher:    p,
-		Binding:   binding,
-		Title:     sparq.Name + " | Admin",
-		StartedAt: time.Now(),
+		Pusher:      p,
+		Binding:     binding,
+		StartedAt:   time.Now(),
+		enabledCSRF: true,
 	}
+	return ui
+}
 
-	app := http.NewServeMux()
-	app.HandleFunc("/static/", staticHandler)
+func (ui *WebUI) Embed(root *mux.Router, prefix string) *mux.Router {
+	app := root
+	if prefix != "" {
+		app = root.PathPrefix(prefix).Subrouter()
+	}
+	app.PathPrefix("/static/").Handler(http.StripPrefix(prefix, staticHandler))
 	app.HandleFunc("/", Log(ui, func(w http.ResponseWriter, r *http.Request) {
 		job := NewJob("atype", "high", "Bob")
 		err := ctx(r).Pusher().Push(r.Context(), job)
@@ -90,38 +94,7 @@ func NewWeb(p sparq.Pusher, binding string) *WebUI {
 	}))
 
 	// app.HandleFunc("/", Log(ui, GetOnly(indexHandler)))
-
-	proxy := http.NewServeMux()
-	proxy.HandleFunc("/", Proxy(app))
-	ui.App = proxy
-
-	return ui
-}
-
-func Proxy(app *http.ServeMux) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		///////
-		// Support transparent proxying with nginx's proxy_pass.
-		// Note that it's super critical that location == X-Script-Name
-		// Example config:
-		/*
-		   location /faktory {
-		       proxy_set_header X-Script-Name /faktory;
-
-		       proxy_pass   http://127.0.0.1:7420;
-		       proxy_set_header Host $host;
-		       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-		       proxy_set_header X-Scheme $scheme;
-		       proxy_set_header X-Real-IP $remote_addr;
-		   }
-		*/
-
-		prefix := "/admin"
-		r.Header.Set("X-Script-Name", prefix)
-		r.RequestURI = strings.Replace(r.RequestURI, prefix, "", 1)
-		r.URL.Path = strings.Replace(r.URL.Path, prefix, "", 1)
-		app.ServeHTTP(w, r)
-	}
+	return root
 }
 
 // func Layout(w io.Writer, req *http.Request, yield func()) {
@@ -137,23 +110,13 @@ func DebugLog(ui *WebUI, pass http.HandlerFunc) http.HandlerFunc {
 }
 
 func Log(ui *WebUI, pass http.HandlerFunc) http.HandlerFunc {
-	return protect(true, setup(ui, pass, false))
+	return protect(ui.enabledCSRF, setup(ui, pass, false))
 }
 
 func setup(ui *WebUI, pass http.HandlerFunc, debug bool) http.HandlerFunc {
 	genericSetup := func(w http.ResponseWriter, r *http.Request) {
-		// this is the entry point for every dynamic request
-		// static assets bypass all this hubbub
-		start := time.Now()
-
 		dctx := NewContext(ui, r, w)
-
 		pass(w, r.WithContext(dctx))
-		if debug {
-			util.Debugf("%s %s %v", r.Method, r.RequestURI, time.Since(start))
-		} else {
-			util.Infof("%s %s %v", r.Method, r.RequestURI, time.Since(start))
-		}
 	}
 	return genericSetup
 }
