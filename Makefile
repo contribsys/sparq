@@ -4,7 +4,7 @@
 	go generate ./...
 
 test: generate
-	go test github.com/contribsys/sparq/finger \
+	go test github.com/contribsys/sparq/wellknown \
 					github.com/contribsys/sparq/faktoryui \
 					github.com/contribsys/sparq/public
 
