@@ -21,14 +21,14 @@ type Options struct {
 
 type Server struct {
 	Options
-	StartedAt time.Time
+	StartedAt    time.Time
+	RedisStopper func()
 
-	mgr          manager.Manager
-	store        storage.Store
-	taskRunner   *taskRunner
-	mu           sync.Mutex
-	closed       bool
-	redisStopper func()
+	mgr        manager.Manager
+	store      storage.Store
+	taskRunner *taskRunner
+	mu         sync.Mutex
+	closed     bool
 }
 
 func NewServer(opts Options) (*Server, error) {
@@ -48,7 +48,7 @@ func NewServer(opts Options) (*Server, error) {
 		Options:      opts,
 		StartedAt:    time.Now(),
 		closed:       false,
-		redisStopper: stopper,
+		RedisStopper: stopper,
 	}
 
 	return s, nil
@@ -80,7 +80,6 @@ func (s *Server) Run(ctx context.Context) error {
 
 func (s *Server) Close() {
 	s.store.Close()
-	s.redisStopper()
 }
 
 func (s *Server) uptimeInSeconds() int {

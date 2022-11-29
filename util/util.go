@@ -4,8 +4,10 @@ import (
 	cryptorand "crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"math/big"
 	mathrand "math/rand"
+	"net/http"
 	"os"
 	"runtime"
 	"time"
@@ -19,6 +21,27 @@ const (
 
 	maxInt63 = int64(^uint64(0) >> 1)
 )
+
+func DumpRequest(r *http.Request) {
+	Infof("=> %s %s", r.Method, r.RequestURI)
+	Debugf("Headers %+v", r.Header)
+	if r.Method == "POST" {
+		if r.Header.Get("Content-Type") == "application/json" {
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				body = []byte(err.Error())
+			}
+			Debugf("Body: %s", string(body))
+		} else {
+			err := r.ParseForm()
+			if err != nil {
+				Error("Unable to parse form", err)
+				return
+			}
+			Debugf("Form %+v", r.PostForm)
+		}
+	}
+}
 
 func Retryable(name string, count int, fn func() error) error {
 	var err error

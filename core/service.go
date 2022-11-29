@@ -9,10 +9,12 @@ import (
 	"time"
 
 	"github.com/contribsys/sparq/adminui"
+	"github.com/contribsys/sparq/db"
 	"github.com/contribsys/sparq/faktory"
 	"github.com/contribsys/sparq/faktoryui"
 	"github.com/contribsys/sparq/jobrunner"
 	"github.com/contribsys/sparq/util"
+	"github.com/jmoiron/sqlx"
 	_ "modernc.org/sqlite"
 )
 
@@ -36,6 +38,15 @@ type Service struct {
 	https  *http.Server
 	cancel context.CancelFunc
 	ctx    context.Context
+}
+
+// Implement sparq.Server interface
+func (s *Service) DB() *sqlx.DB {
+	return db.Database()
+}
+
+func (s *Service) Hostname() string {
+	return s.Options.Hostname
 }
 
 func NewService(opts Options) (*Service, error) {
@@ -71,6 +82,7 @@ func (s *Service) Close() error {
 }
 
 func (s *Service) Run() error {
+	defer s.JobServer.RedisStopper()
 	// This is the context which signals that we are starting
 	// the shutdown process
 

@@ -1,8 +1,10 @@
 package model
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/contribsys/sparq/db"
 	"github.com/contribsys/sparq/util"
 )
 
@@ -31,8 +33,18 @@ type User struct {
 	*UserSecurity
 }
 
+type OauthApp struct {
+	ClientName   string `json:"name"`
+	ClientId     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+	RedirectUris string `json:"redirect_uri"`
+	Website      string `json:"website"`
+	Scopes       string
+	CreatedAt    time.Time
+}
+
 func (u *User) URI() string {
-	return "https://localhost.dev/@" + u.Nick
+	return fmt.Sprintf("https://%s/@%s", db.InstanceHostname, u.Nick)
 }
 
 var (

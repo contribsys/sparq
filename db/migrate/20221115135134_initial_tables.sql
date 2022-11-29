@@ -11,6 +11,16 @@ create table if not exists `users` (
   unique (sfid),
   unique (nick)
 );
+create table if not exists `oauth_apps` (
+  ClientName     string not null,
+  ClientId       string not null,
+  ClientSecret   string not null,
+  RedirectUris   string not null,
+  Website        string not null,
+  Scopes         string not null default "read",
+  CreatedAt      timestamp not null default current_timestamp,
+  unique (ClientId)
+);
 create table if not exists `user_attributes` (
   Id         integer primary key,
   UserId     integer not null,
@@ -64,4 +74,5 @@ drop table actors;
 drop table collections;
 drop table user_securities;
 drop table user_attributes;
+-- drop table user_oauth_apps;
 drop table users;

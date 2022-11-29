@@ -86,33 +86,9 @@ func webfingerHandler(dbx *sqlx.DB) http.HandlerFunc {
 			return
 		}
 
-		resp.Header().Add("Content-Type", "application/jrd+json")
-		err = fingerResponseTemplate.Execute(resp, result)
-		if err != nil {
-			http.Error(resp, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-}
-
-func nodeinfoHandler(dbx *sqlx.DB) http.HandlerFunc {
-	return func(resp http.ResponseWriter, req *http.Request) {
-		username := req.URL.Query().Get("resource")
-		if username == "" ||
-			!strings.HasPrefix(username, "acct:") ||
-			!strings.HasSuffix(username, "@"+db.InstanceHostname) {
-			http.Error(resp, "Invalid input", http.StatusBadRequest)
-			return
-		}
-
-		parts := strings.Split(username[5:], "@")
-
-		result, err := fingerLookup(req.Context(), dbx, parts[0], parts[1])
-		if err != nil {
-			http.Error(resp, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
+		resp.Header().Add("Access-Control-Allow-Origin", "*")
+		resp.Header().Add("Access-Control-Allow-Headers", "*")
+		resp.Header().Add("Access-Control-Allow-Methods", "GET")
 		resp.Header().Add("Content-Type", "application/jrd+json")
 		err = fingerResponseTemplate.Execute(resp, result)
 		if err != nil {
@@ -126,6 +102,9 @@ func AddPublicEndpoints(mux *mux.Router) {
 	mux.HandleFunc("/.well-known/webfinger", webfingerHandler(db.Database()))
 	mux.HandleFunc("/.well-known/nodeinfo", func(resp http.ResponseWriter, req *http.Request) {
 		resp.Header().Add("Content-Type", "application/json")
+		resp.Header().Add("Access-Control-Allow-Origin", "*")
+		resp.Header().Add("Access-Control-Allow-Headers", "*")
+		resp.Header().Add("Access-Control-Allow-Methods", "GET")
 		resp.WriteHeader(200)
 		_, _ = resp.Write([]byte(`{"links":[{"rel":"http://nodeinfo.diaspora.software/ns/schema/2.1","href":"https://` + db.InstanceHostname + `/nodeinfo/2.1"}]}`))
 	})

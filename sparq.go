@@ -13,7 +13,7 @@ const (
 )
 
 var (
-	UserAgent = fmt.Sprintf("%s v%s", Name, Version)
+	ServerHeader = fmt.Sprintf("%s v%s; contribsys.com", Name, Version)
 )
 
 type PerformFunc func(ctx context.Context, args ...interface{}) error
