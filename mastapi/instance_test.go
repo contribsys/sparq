@@ -1,7 +1,6 @@
 package mastapi
 
 import (
-	"fmt"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -25,7 +24,7 @@ func TestInstance(t *testing.T) {
 		assert.Contains(t, w.Body.String(), `"domain": "localhost.dev",`)
 	})
 
-	t.Run("app", func(t *testing.T) {
+	t.Run("apps", func(t *testing.T) {
 		req := httptest.NewRequest("OPTIONS", "http://localhost.dev:9494/api/v1/apps", nil)
 		w := httptest.NewRecorder()
 		appsHandler(ts)(w, req)
@@ -57,13 +56,13 @@ func TestInstance(t *testing.T) {
 		h := appsHandler(ts)
 		h(w, req)
 		assert.Equal(t, 200, w.Code)
-		fmt.Println(w.Body.String())
 		assert.Contains(t, w.Body.String(), "client_secret")
 		assert.Contains(t, w.Body.String(), "Pinafore")
 
 		var count []int
 		err := db.Database().Select(&count, "select count(*) from oauth_apps where ClientName = 'Pinafore'")
 		assert.NoError(t, err)
+		assert.Equal(t, 1, count[0])
 	})
 }
 

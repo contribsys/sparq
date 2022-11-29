@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"text/template"
@@ -60,7 +59,6 @@ func appsHandler(svr sparq.Server) http.HandlerFunc {
 				return
 			}
 		}
-		fmt.Println(hash)
 
 		clientId := uuid.NewString()
 		secret := make([]byte, 16)
