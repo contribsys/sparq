@@ -26,6 +26,10 @@ redo:
 prod: generate
 	go run ./cmd/sparq run -l debug -h social.contribsys.com
 
+lint:
+	# brew install golangci/tap/golangci-lint
+	golangci-lint run
+
 run: generate
 	go run ./cmd/sparq run -l debug
 

@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// go:generate ego .
+//go:generate ego .
 
 type Tab struct {
 	Name string

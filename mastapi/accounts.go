@@ -26,14 +26,13 @@ import (
 // GET https://mastodon.example/api/v1/accounts/relationships
 // GET https://mastodon.example/api/v1/accounts/search
 
-func AddPublicEndpoints(s sparq.Server, mux *mux.Router) error {
+func AddPublicEndpoints(s sparq.Server, mux *mux.Router) {
 	mux.HandleFunc("/apps", appsHandler(s))
 	mux.HandleFunc("/instance", instanceHandler(s))
 	mux.HandleFunc("/accounts/{sfid:[0-9]+}", getAccount)
 	mux.HandleFunc("/accounts/{sfid:[0-9]+}/statuses", getAccountStatuses)
 	// mux.HandleFunc("/accounts/{sfid:[0-9]+}/followers", getAccountFollowers)
 	// mux.HandleFunc("/accounts/{sfid:[0-9]+}/following", getAccountFollowing)
-	return nil
 }
 
 func getAccountStatuses(w http.ResponseWriter, r *http.Request) {

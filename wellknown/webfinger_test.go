@@ -17,7 +17,8 @@ var (
 	}
 )
 
-func xTestRemoteLookup(t *testing.T) {
+func TestRemoteLookup(t *testing.T) {
+	t.Skip()
 	users := []string{
 		"@getajobmike@ruby.social",
 		"@karolat@stereophonic.space",

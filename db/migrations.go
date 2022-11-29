@@ -15,7 +15,7 @@ var Migrations embed.FS
 
 func init() {
 	goose.SetBaseFS(Migrations)
-	goose.SetDialect("sqlite3")
+	_ = goose.SetDialect("sqlite3")
 }
 
 // the latest migration version in the sqlite database on disk

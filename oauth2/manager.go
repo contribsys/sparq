@@ -220,7 +220,6 @@ func (m *manager) getAuthorizationCode(ctx context.Context, code string) (TokenI
 	if err != nil {
 		return nil, err
 	} else if ti == nil || ti.GetCode() != code || ti.GetCodeCreateAt().Add(ti.GetCodeExpiresIn()).Before(time.Now()) {
-		err = ErrInvalidAuthorizeCode
 		return nil, ErrInvalidAuthorizeCode
 	}
 	return ti, nil
