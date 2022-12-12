@@ -65,7 +65,7 @@ func TestInstance(t *testing.T) {
 		assert.Contains(t, w.Body.String(), "Pinafore")
 
 		var count int
-		err := db.Database().QueryRow("select count(*) from oauth_apps where ClientName = 'Pinafore'").Scan(&count)
+		err := db.Database().QueryRow("select count(*) from oauth_clients where Name = 'Pinafore'").Scan(&count)
 		assert.NoError(t, err)
 		assert.Equal(t, 1, count)
 	})

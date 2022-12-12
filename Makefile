@@ -6,7 +6,9 @@
 test: generate
 	go test github.com/contribsys/sparq/wellknown \
 					github.com/contribsys/sparq/faktoryui \
-					github.com/contribsys/sparq/public
+					github.com/contribsys/sparq/mastapi \
+					github.com/contribsys/sparq/public \
+					github.com/contribsys/sparq/util
 
 int:
 	go run test/main.go

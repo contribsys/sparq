@@ -38,9 +38,9 @@ func TestPublicWeb(t *testing.T) {
 		assert.Equal(t, 200, w.Code)
 		assert.Contains(t, w.Body.String(), "END PUBLIC KEY")
 	})
-	withQuery("/", func(w *httptest.ResponseRecorder, req *http.Request) {
-		assert.Equal(t, 200, w.Code)
-		assert.Contains(t, w.Body.String(), "Timeline")
+	withQuery("/home", func(w *httptest.ResponseRecorder, req *http.Request) {
+		assert.Equal(t, 302, w.Code)
+		assert.Contains(t, w.Body.String(), "/login")
 	})
 }
 
