@@ -53,7 +53,7 @@ create table if not exists `user_attributes` (
 );
 create table if not exists `user_securities` (
   UserId        integer primary key,
-  PasswordHash  string not null,
+  PasswordHash  blob not null,
   PublicKey     string not null,
   PrivateKey    string not null,
   foreign key (UserId) references users(id) on delete cascade 

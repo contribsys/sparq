@@ -10,6 +10,7 @@ import (
 	"text/template"
 
 	"github.com/contribsys/sparq"
+	"github.com/contribsys/sparq/util"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
@@ -68,13 +69,15 @@ func appsHandler(svr sparq.Server) http.HandlerFunc {
 			return
 		}
 		clientSecret := hex.EncodeToString(secret)
+
 		// save new OAuth2 application record with client_id and client_secret
-		_, err = svr.DB().ExecContext(r.Context(), `insert into oauth_apps (
-			ClientName, ClientId, ClientSecret, RedirectUris, Scopes, Website) values (
+		_, err = svr.DB().ExecContext(r.Context(), `insert into oauth_clients (
+			Name, ClientId, Secret, RedirectUris, Scopes, Website) values (
 				?, ?, ?, ?, ?, ?
 			)`, hash["client_name"], clientId, clientSecret,
 			hash["redirect_uris"], hash["scopes"], hash["website"])
 		if err != nil {
+			util.Error("oauth_apps", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

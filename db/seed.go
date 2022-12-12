@@ -70,6 +70,7 @@ func createAdmin() error {
 		if err != nil {
 			return err
 		}
+		util.Infof("Admin password hash: %s", hash)
 		pub, priv := util.GenerateKeys()
 		_, err = db.Exec(newSecurityInsert, 1, hash, pub, priv)
 		if err != nil {

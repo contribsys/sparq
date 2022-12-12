@@ -2,7 +2,6 @@ package public
 
 import (
 	"context"
-	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/activitystreams"
 	"github.com/contribsys/sparq/db"
+	"github.com/contribsys/sparq/util"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	"github.com/pkg/errors"
@@ -53,8 +53,15 @@ var (
 		{"Federated", "/federated"},
 	}
 	ErrNotFound   = errors.New("User not found")
-	staticHandler = http.FileServer(http.FS(staticFiles))
+	staticHandler = cacheControl(http.FileServer(http.FS(staticFiles)))
 )
+
+func cacheControl(pass http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Cache-Control", "public, max-age=300")
+		pass.ServeHTTP(w, r)
+	})
+}
 
 func setCtx(pass http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -67,8 +74,9 @@ func AddPublicEndpoints(s sparq.Server, root *mux.Router) {
 	root.Use(setCtx)
 	root.PathPrefix("/static").Handler(staticHandler)
 	root.HandleFunc("/users/{nick:[a-z0-9]{4,16}}", getUser)
-	root.HandleFunc("/", indexHandler)
+	root.HandleFunc("/home", requireLogin(indexHandler))
 	root.HandleFunc("/login", loginHandler(s))
+	root.HandleFunc("/logout", logoutHandler(s))
 	// mux.HandleFunc("/home", homeHandler)
 	// mux.HandleFunc("/public/local", localHandler)
 	// mux.HandleFunc("/public", publicHandler)
@@ -76,14 +84,46 @@ func AddPublicEndpoints(s sparq.Server, root *mux.Router) {
 	// mux.HandleFunc("/auth/sign_in", signinHandler)
 }
 
+func requireLogin(fn http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := sessionStore.Get(r, "sparq-session")
+		_, ok := session.Values["uid"]
+		if !ok {
+			if r.Form == nil {
+				_ = r.ParseForm()
+			}
+			session.Values["returnForm"] = r.Form
+			session.AddFlash("Please sign in to continue")
+			_ = session.Save(r, w)
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+		fn(w, r)
+	}
+}
+
+func logoutHandler(s sparq.Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := sessionStore.Get(r, "sparq-session")
+		delete(session.Values, "uid")
+		_ = session.Save(r, w)
+		http.Redirect(w, r, "/login", http.StatusFound)
+	}
+}
+
 func loginHandler(s sparq.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		session, _ := sessionStore.Get(r, "sparq-session")
+		if session.Values["uid"] != nil {
+			util.Debugf("User %d is already logged in", session.Values["uid"])
+			http.Redirect(w, r, "/home", http.StatusFound)
+			return
+		}
 		if r.Method == "POST" {
 			if r.Form == nil {
 				_ = r.ParseForm()
 			}
-			username := r.Form.Get("username")
+			username := strings.ToLower(r.Form.Get("username"))
 			password := r.Form.Get("password")
 			var uid int64
 			var hash []byte
@@ -91,9 +131,10 @@ func loginHandler(s sparq.Server) http.HandlerFunc {
 			  select us.UserId, us.PasswordHash
 				from users u join user_securities us
 				on u.Id = us.UserId
-				where u.Nick = ?`, strings.ToLower(username)).Scan(&uid, &hash)
+				where u.Nick = ?`, username).Scan(&uid, &hash)
 			if err != nil {
 				if err == sql.ErrNoRows {
+					util.Debugf("Username not found: %s", username)
 					session.AddFlash("Invalid username or password")
 					ego_login(w, r)
 					return
@@ -101,22 +142,21 @@ func loginHandler(s sparq.Server) http.HandlerFunc {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			pwdhash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			if uid > 0 && subtle.ConstantTimeCompare(hash, pwdhash) == 1 {
+			util.Debugf("Login %s (uid %d)", username, uid)
+			err = bcrypt.CompareHashAndPassword(hash, []byte(password))
+			if err == nil {
 				session.Values["uid"] = uid
+				session.Values["username"] = username
 				redir, ok := session.Values["redirectTo"].(string)
 				delete(session.Values, "redirectTo")
 				_ = session.Save(r, w)
 				if !ok {
-					redir = "/"
+					redir = "/home"
 				}
 				http.Redirect(w, r, redir, http.StatusFound)
 				return
 			}
+			util.Debugf("Password %q doesn't match: %s", password, hash)
 		}
 		ego_login(w, r)
 	}

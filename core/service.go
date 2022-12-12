@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"runtime"
 	"sync"
 	"time"
 
@@ -69,8 +68,8 @@ func NewService(opts Options) (*Service, error) {
 	s.FaktoryUI = faktoryui.NewWeb(js, opts.Binding)
 	s.AdminUI = adminui.NewWeb(js.Manager(), opts.Binding)
 	s.JobRunner = jobrunner.NewJobRunner(js.Manager(), jobrunner.Options{
-		Concurrency: runtime.NumCPU() * 5,
-		Queues:      []string{"high", "med", "low"},
+		Concurrency: 1,
+		Queues:      []string{"high", "default", "low"},
 	})
 	adminui.Register(s.JobRunner)
 	return s, nil
