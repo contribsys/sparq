@@ -11,15 +11,38 @@ create table if not exists `users` (
   unique (sfid),
   unique (nick)
 );
-create table if not exists `oauth_apps` (
-  ClientName     string not null,
+create table if not exists `oauth_clients` (
+  Name           string not null,
   ClientId       string not null,
-  ClientSecret   string not null,
+  Secret         string not null,
   RedirectUris   string not null,
   Website        string not null,
+  UserId         integer,
   Scopes         string not null default "read",
   CreatedAt      timestamp not null default current_timestamp,
-  unique (ClientId)
+  unique (ClientId),
+  foreign key (UserId) references users(id) on delete cascade 
+);
+create table if not exists `oauth_tokens` (
+	ClientId            string not null,
+	UserId              integer not null, 
+	RedirectUri         string not null, 
+	Scope               string not null, 
+	Code                string not null, 
+	CodeChallenge       string,
+	CodeCreateAt        timestamp,
+	CodeExpiresIn       integer,
+	Access              string, 
+	AccessCreateAt      timestamp,
+	AccessExpiresIn     integer,
+	Refresh             string, 
+	RefreshCreateAt     timestamp,
+	RefreshExpiresIn    integer,
+  CreatedAt           timestamp not null default current_timestamp,
+  unique (Code),
+  unique (Access),
+  foreign key (UserId) references users(id) on delete cascade 
+  foreign key (ClientId) references oauth_clients(ClientId) on delete cascade 
 );
 create table if not exists `user_attributes` (
   Id         integer primary key,
@@ -74,5 +97,6 @@ drop table actors;
 drop table collections;
 drop table user_securities;
 drop table user_attributes;
--- drop table user_oauth_apps;
+drop table oauth_clients;
+drop table oauth_tokens;
 drop table users;

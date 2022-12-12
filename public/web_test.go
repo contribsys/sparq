@@ -10,6 +10,21 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestPublicStatic(t *testing.T) {
+	stopper, err := db.TestDB("web")
+	assert.NoError(t, err)
+	defer stopper()
+
+	req := httptest.NewRequest("GET", "http://localhost.dev:9494/static/logo-sm.png", nil)
+	w := httptest.NewRecorder()
+	r := mux.NewRouter()
+	svr := &testSvr{}
+	AddPublicEndpoints(svr, r)
+	r.ServeHTTP(w, req)
+	assert.Equal(t, 200, w.Code)
+	assert.Contains(t, w.Header().Get("Content-Type"), "image/png")
+}
+
 func TestPublicWeb(t *testing.T) {
 	stopper, err := db.TestDB("web")
 	assert.NoError(t, err)
@@ -33,7 +48,8 @@ func withQuery(query string, fn func(w *httptest.ResponseRecorder, req *http.Req
 	req := httptest.NewRequest("GET", "http://localhost.dev:9494"+query, nil)
 	w := httptest.NewRecorder()
 	r := mux.NewRouter()
-	AddPublicEndpoints(r)
+	s := &testSvr{}
+	AddPublicEndpoints(s, r)
 	r.ServeHTTP(w, req)
 	fn(w, req)
 }

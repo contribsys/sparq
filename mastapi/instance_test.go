@@ -1,6 +1,7 @@
 package mastapi
 
 import (
+	"encoding/json"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -22,6 +23,10 @@ func TestInstance(t *testing.T) {
 		instanceHandler(ts)(w, req)
 		assert.Equal(t, w.Code, 200)
 		assert.Contains(t, w.Body.String(), `"domain": "localhost.dev",`)
+
+		var testy map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &testy)
+		assert.NoError(t, err)
 	})
 
 	t.Run("apps", func(t *testing.T) {
@@ -59,10 +64,10 @@ func TestInstance(t *testing.T) {
 		assert.Contains(t, w.Body.String(), "client_secret")
 		assert.Contains(t, w.Body.String(), "Pinafore")
 
-		var count []int
-		err := db.Database().Select(&count, "select count(*) from oauth_apps where ClientName = 'Pinafore'")
+		var count int
+		err := db.Database().QueryRow("select count(*) from oauth_apps where ClientName = 'Pinafore'").Scan(&count)
 		assert.NoError(t, err)
-		assert.Equal(t, 1, count[0])
+		assert.Equal(t, 1, count)
 	})
 }
 

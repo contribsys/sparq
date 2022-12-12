@@ -7,19 +7,23 @@ import (
 )
 
 // NewClientStore create client store
-func NewClientStore() *clientStore {
+func NewClientStore() ClientStore {
 	return &clientStore{
 		data: make(map[string]ClientInfo),
 	}
 }
 
-// ClientStore client information store
+type ClientStore interface {
+	GetByID(ctx context.Context, id string) (ClientInfo, error)
+	Set(ctx context.Context, id string, cli ClientInfo) error
+	Delete(ctx context.Context, id string) error
+}
+
 type clientStore struct {
 	sync.RWMutex
 	data map[string]ClientInfo
 }
 
-// GetByID according to the ID for the client information
 func (cs *clientStore) GetByID(ctx context.Context, id string) (ClientInfo, error) {
 	cs.RLock()
 	defer cs.RUnlock()
@@ -30,11 +34,15 @@ func (cs *clientStore) GetByID(ctx context.Context, id string) (ClientInfo, erro
 	return nil, errors.New("not found")
 }
 
-// Set set client information
-func (cs *clientStore) Set(id string, cli ClientInfo) (err error) {
+func (cs *clientStore) Set(ctx context.Context, id string, cli ClientInfo) (err error) {
 	cs.Lock()
 	defer cs.Unlock()
 
 	cs.data[id] = cli
 	return
+}
+
+func (cs *clientStore) Delete(ctx context.Context, id string) error {
+	delete(cs.data, id)
+	return nil
 }

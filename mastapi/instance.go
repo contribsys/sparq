@@ -84,6 +84,7 @@ func appsHandler(svr sparq.Server) http.HandlerFunc {
 			"client_secret": clientSecret,
 			"redirect_uri":  hash["redirect_uris"],
 			"name":          hash["client_name"],
+			"website":       "http://localhost:9494",
 			"vapid_key":     nil,
 		})
 		if err != nil {
@@ -117,6 +118,7 @@ func instanceHandler(svr sparq.Server) http.HandlerFunc {
 	}
 	code := 200
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Content-Type", "application/json")
 		w.WriteHeader(code)
 		_, _ = w.Write(buf.Bytes())
 	}
@@ -135,8 +137,7 @@ type User struct {
 
 var (
 	instanceTemplate *template.Template
-	instanceText     string = `
-	{
+	instanceText     string = `{
 		"domain": "{{.Domain}}",
 		"title": "{{.SoftwareName}}",
 		"version": "{{.SoftwareVersion}}",
@@ -148,7 +149,7 @@ var (
 			}
 		},
 		"thumbnail": {
-			"url": "https://{{.Domain}}/static/logo.png",
+			"url": "https://{{.Domain}}/static/logo.png"
 		},
 		"languages": ["en"],
 		"configuration": {
@@ -159,13 +160,13 @@ var (
 			"message": null
 		},
 		"contact": {
-			"email": "{{.Admin.Email}}
+			"email": "{{.Admin.Email}}",
 			"account": {
 				"id": "{{.Admin.Id}}",
 				"username": "{{.Admin.Nick}}",
 				"acct": "{{.Admin.Nick}}",
 				"display_name": "{{.Admin.FullName}}",
-				"created_at": {{.Admin.CreatedAt}}
+				"created_at": "{{.Admin.CreatedAt}}",
 				"note": "TODO",
 				"url": "https://{{.Domain}}/@{{.Admin.Nick}}",
 				"avatar": "https://{{.Domain}}/static/logo.png",
@@ -174,7 +175,7 @@ var (
 				"header_static": "https://{{.Domain}}/static/logo.png",
 				"followers_count": 0,
 				"following_count": 0,
-				"statuses_count": 0,
+				"statuses_count": 0
 			}
 		},
 		"rules": [
@@ -188,7 +189,7 @@ var (
 				"text": "No harassment, dogpiling or doxxing of other users"
 			}, { "id": "5",
 				"text": "No content illegal in Germany"
-			}, {"id": "7",
+			}, {"id": "6",
 				"text": "Do not share intentionally false or misleading information"
 			}
 		]
