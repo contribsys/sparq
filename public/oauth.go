@@ -1,0 +1,229 @@
+package public
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"net/http"
+	"net/url"
+
+	"github.com/contribsys/sparq"
+	"github.com/contribsys/sparq/db"
+	"github.com/contribsys/sparq/model"
+	"github.com/contribsys/sparq/oauth2"
+	"github.com/contribsys/sparq/util"
+	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
+)
+
+// This is the code necessary to integrate go-oauth/oauth2 into Sparq.
+
+type SqliteOauthStore struct {
+	db *sqlx.DB
+}
+
+func (scs *SqliteOauthStore) GetByID(ctx context.Context, id string) (oauth2.ClientInfo, error) {
+	var client model.OauthClient
+	util.Infof("Finding OAuth client %s", id)
+	row := scs.db.QueryRowxContext(ctx, "select * from oauth_clients where ClientId = ?", id)
+	if err := row.Err(); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, errors.Wrap(err, "wrapped")
+	}
+	err := row.StructScan(&client)
+	if err != nil {
+		return nil, errors.Wrap(err, "Unable to struct")
+	}
+	return &client, nil
+}
+
+func (scs *SqliteOauthStore) Set(ctx context.Context, id string, cli oauth2.ClientInfo) error {
+	return errors.New("Set not implemented")
+}
+
+func (scs *SqliteOauthStore) Delete(ctx context.Context, id string) error {
+	return wrap(scs.db.ExecContext(ctx, "delete from oauth_clients where ClientId = ?", id))
+}
+
+func (scs *SqliteOauthStore) Create(ctx context.Context, info oauth2.TokenInfo) error {
+	fmt.Printf("Created OAuth token: %+v\n", info)
+	/*
+		_, err := scs.db.ExecContext(ctx, `INSERT INTO oauth_tokens (
+			ClientId, UserId, RedirectUri, Scope, CodeChallenge,
+			Code, CodeCreateAt, CodeExpiresIn,
+			Access, AccessCreateAt, AccessExpiresIn,
+			Refresh, RefreshCreateAt, RefreshExpiresIn)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?  ?, ?, ?)`,
+	*/
+	_, err := scs.db.ExecContext(ctx, `INSERT INTO oauth_tokens (
+		ClientId, UserId, RedirectUri, Scope, CodeChallenge,
+		Code, CodeCreateAt, CodeExpiresIn)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		info.GetClientID(), info.GetUserID(), info.GetRedirectURI(), info.GetScope(), info.GetCodeChallenge(),
+		info.GetCode(), info.GetCodeCreateAt(), info.GetCodeExpiresIn())
+	// info.GetAccess(), info.GetAccessCreateAt(), info.GetAccessExpiresIn(),
+	// info.GetRefresh(), info.GetRefreshCreateAt(), info.GetRefreshExpiresIn())
+	if err != nil {
+		return errors.Wrap(err, "insert")
+	}
+	return nil
+}
+func wrap(_ any, err error) error {
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		return errors.Wrap(err, "Wrap")
+	}
+	return nil
+}
+func (scs *SqliteOauthStore) RemoveByCode(ctx context.Context, code string) error {
+	return wrap(scs.db.ExecContext(ctx, "delete from oauth_tokens where code = ?", code))
+}
+func (scs *SqliteOauthStore) RemoveByAccess(ctx context.Context, access string) error {
+	return wrap(scs.db.ExecContext(ctx, "delete from oauth_tokens where access = ?", access))
+}
+func (scs *SqliteOauthStore) RemoveByRefresh(ctx context.Context, refresh string) error {
+	return wrap(scs.db.ExecContext(ctx, "delete from oauth_tokens where refresh = ?", refresh))
+}
+func (scs *SqliteOauthStore) getBy(ctx context.Context, name, value string) (oauth2.TokenInfo, error) {
+	fmt.Printf("get %s %s\n", name, value)
+	var token model.OauthToken
+	err := scs.db.QueryRowxContext(ctx, "select * from oauth_tokens where ? = ?", name, value).StructScan(&token)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return nil, errors.Wrap(err, "getBy")
+		}
+		return nil, nil
+	}
+	return &token, nil
+}
+func (scs *SqliteOauthStore) GetByCode(ctx context.Context, code string) (oauth2.TokenInfo, error) {
+	return scs.getBy(ctx, "code", code)
+}
+func (scs *SqliteOauthStore) GetByAccess(ctx context.Context, access string) (oauth2.TokenInfo, error) {
+	return scs.getBy(ctx, "access", access)
+}
+func (scs *SqliteOauthStore) GetByRefresh(ctx context.Context, refresh string) (oauth2.TokenInfo, error) {
+	return scs.getBy(ctx, "refresh", refresh)
+}
+
+func IntegrateOauth(s sparq.Server, root *mux.Router) {
+	manager := oauth2.NewDefaultManager()
+	store := &SqliteOauthStore{db.Database()}
+	manager.MapTokenStorage(store)
+	manager.MapClientStorage(store)
+
+	sc := &oauth2.ConfigConfig{
+		TokenType:             "Bearer",
+		AllowGetAccessRequest: false,
+		AllowedResponseTypes:  []oauth2.ResponseType{oauth2.CodeType},
+		AllowedGrantTypes: []oauth2.GrantType{
+			oauth2.AuthorizationCode,
+			oauth2.ClientCredentials,
+		},
+		AllowedCodeChallengeMethods: []oauth2.CodeChallengeMethod{
+			oauth2.CodeChallengePlain, oauth2.CodeChallengeS256},
+	}
+	srv := oauth2.NewServer(sc, manager)
+	srv.SetAllowGetAccessRequest(true)
+	srv.SetClientInfoHandler(oauth2.ClientFormHandler)
+	// srv.SetPasswordAuthorizationHandler(func(ctx context.Context, clientID, username, password string) (string, error) {
+	// 	fmt.Println(clientID, username, password)
+	// 	var uid int64
+	// 	var hash []byte
+	// 	err := s.DB().QueryRowxContext(ctx, `
+	// 		select us.Id, us.PasswordHash
+	// 		from user_securities us join users u
+	// 		on u.id = us.user_id
+	// 		where users.Nick = ?`, strings.ToLower(username)).Scan(&uid, &hash)
+	// 	if err != nil {
+	// 		return "", errors.Wrap(err, username)
+	// 	}
+	// 	pwdhash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+	// 	if err != nil {
+	// 		return "", errors.Wrap(err, "bcrypt")
+	// 	}
+	// 	if uid > 0 && subtle.ConstantTimeCompare(hash, pwdhash) == 1 {
+	// 		return strconv.FormatInt(uid, 10), nil
+	// 	}
+	// 	return "", errors.New("Invalid username or password")
+	// })
+	srv.SetInternalErrorHandler(func(err error) (re *oauth2.Response) {
+		fmt.Println("internal oauth error:", err.Error())
+		return
+	})
+	srv.SetResponseErrorHandler(func(re *oauth2.Response) {
+		fmt.Println("oauth response error:", re.Error.Error())
+	})
+	root.HandleFunc("/oauth/authorize", requireLogin(func(w http.ResponseWriter, r *http.Request) {
+		session, _ := sessionStore.Get(r, "sparq-session")
+		v, ok := session.Values["returnForm"]
+		if ok {
+			r.Form = v.(url.Values)
+		}
+
+		err := r.ParseForm()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		clientId := r.Form.Get("client_id")
+		util.Infof("Authorizing client %s", clientId)
+		client, err := srv.Manager.GetClient(r.Context(), clientId)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		oc := client.(*model.OauthClient)
+
+		// Denied, bye!
+		if r.Form.Get("Deny") == "1" {
+			delete(session.Values, "returnForm")
+			_ = session.Save(r, w)
+			err := store.Delete(r.Context(), r.Form.Get("client_id"))
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			u, err := url.Parse(oc.RedirectUris)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			q := u.Query()
+			q.Add("error", "access_denied")
+			q.Add("error_description", "Access was denied")
+			u.RawQuery = q.Encode()
+			http.Redirect(w, r, u.String(), 302)
+			return
+		}
+
+		if r.Method == "POST" && r.Form.Get("Approve") == "1" {
+			delete(session.Values, "returnForm")
+			_ = session.Save(r, w)
+			err := srv.HandleAuthorizeRequest(w, r)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+		}
+		ego_oauth_authorize(w, r, oc)
+	}))
+
+	root.HandleFunc("/oauth/token", requireLogin(func(w http.ResponseWriter, r *http.Request) {
+		err := srv.HandleTokenRequest(w, r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
+	}))
+	srv.SetUserAuthorizationHandler(func(w http.ResponseWriter, r *http.Request) (string, error) {
+		session, _ := sessionStore.Get(r, "sparq-session")
+		uid := session.Values["uid"]
+		return fmt.Sprint(uid), nil
+	})
+}

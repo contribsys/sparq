@@ -1,0 +1,102 @@
+package public
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/contribsys/sparq/db"
+	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestPublicOauth(t *testing.T) {
+	stopper, err := db.TestDB("oauth")
+	assert.NoError(t, err)
+	defer stopper()
+
+	r := mux.NewRouter()
+	s := &testSvr{}
+	AddPublicEndpoints(s, r)
+	IntegrateOauth(s, r)
+
+	route(r, "/nosuch", func(w *httptest.ResponseRecorder, req *http.Request) {
+		assert.Equal(t, 404, w.Code)
+		assert.Contains(t, w.Body.String(), "not found")
+	})
+	route(r, "/oauth/authorize", func(w *httptest.ResponseRecorder, req *http.Request) {
+		assert.Equal(t, 302, w.Code)
+		assert.Contains(t, w.Body.String(), "/login")
+	})
+	route(r, "/oauth/token", func(w *httptest.ResponseRecorder, req *http.Request) {
+		assert.Equal(t, 302, w.Code)
+		assert.Contains(t, w.Body.String(), "/login")
+	})
+	route(r, "/oauth/authorize?client_id=93e60c83-3c57-42ac-abaf-be6bc7ad2e68&redirect_uri=http%3A%2F%2Flocalhost%3A4002%2Fsettings%2Finstances%2Fadd&response_type=code&scope=read%20write%20follow%20push", func(w *httptest.ResponseRecorder, req *http.Request) {
+		assert.Equal(t, 302, w.Code)
+		assert.Contains(t, w.Header().Get("Location"), "/login")
+	})
+
+	_, err = db.Database().Exec(`insert into oauth_clients
+	 (ClientId, Name, Secret, RedirectUris, Website, Scopes) values 
+	 ("93e60c83-3c57-42ac-abaf-be6bc7ad2e68", "Pinafore", "123456789abcdef", "http://localhost:4002/settings/instances/add", "http://localhost:4002", "read write follow push")`)
+	assert.NoError(t, err)
+
+	sos := &SqliteOauthStore{db: db.Database()}
+	ci, err := sos.GetByID(context.Background(), "93e60c83-3c57-42ac-abaf-be6bc7ad2e68")
+	assert.NoError(t, err)
+	assert.NotNil(t, ci)
+
+	req := httptest.NewRequest("GET", "http://localhost.dev:9494/oauth/authorize?client_id=93e60c83-3c57-42ac-abaf-be6bc7ad2e68&redirect_uri=http%3A%2F%2Flocalhost%3A4002%2Fsettings%2Finstances%2Fadd&response_type=code&scope=read%20write%20follow%20push", nil)
+	w := httptest.NewRecorder()
+	session, err := sessionStore.Get(req, "sparq-session")
+	assert.NoError(t, err)
+	session.Values["uid"] = 1
+	r.ServeHTTP(w, req)
+	assert.Equal(t, 200, w.Code)
+	assert.Contains(t, w.Body.String(), "Authorize Application?")
+
+	req = httptest.NewRequest("POST", "http://localhost.dev:9494/oauth/authorize?client_id=93e60c83-3c57-42ac-abaf-be6bc7ad2e68&redirect_uri=http%3A%2F%2Flocalhost%3A4002%2Fsettings%2Finstances%2Fadd&response_type=code&scope=read%20write%20follow%20push&Approve=1", nil)
+	w = httptest.NewRecorder()
+	session, err = sessionStore.Get(req, "sparq-session")
+	assert.NoError(t, err)
+	session.Values["uid"] = 1
+	session.Values["username"] = "admin"
+	r.ServeHTTP(w, req)
+	assert.Equal(t, 302, w.Code)
+	assert.Contains(t, w.Header().Get("Location"), "http://localhost:4002/settings/instances/add?code=")
+
+	req = httptest.NewRequest("POST", "http://localhost.dev:9494/oauth/authorize?client_id=93e60c83-3c57-42ac-abaf-be6bc7ad2e68&redirect_uri=http%3A%2F%2Flocalhost%3A4002%2Fsettings%2Finstances%2Fadd&response_type=code&scope=read%20write%20follow%20push&Deny=1", nil)
+	w = httptest.NewRecorder()
+	session, err = sessionStore.Get(req, "sparq-session")
+	assert.NoError(t, err)
+	session.Values["uid"] = 1
+	session.Values["username"] = "admin"
+	r.ServeHTTP(w, req)
+	assert.Equal(t, 302, w.Code)
+	assert.Contains(t, w.Header().Get("Location"), "http://localhost:4002/settings/instances/add?error")
+	var count int
+	err = db.Database().QueryRow("select count(*) from oauth_clients").Scan(&count)
+	assert.NoError(t, err)
+	assert.EqualValues(t, 0, count)
+}
+
+func route(r *mux.Router, query string, fn func(w *httptest.ResponseRecorder, req *http.Request)) {
+	req := httptest.NewRequest("GET", "http://localhost.dev:9494"+query, nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	fn(w, req)
+}
+
+type testSvr struct {
+}
+
+func (ts *testSvr) DB() *sqlx.DB {
+	return db.Database()
+}
+
+func (ts *testSvr) Hostname() string {
+	return "localhost.dev"
+}

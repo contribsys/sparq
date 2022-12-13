@@ -1,0 +1,18 @@
+<%
+package public
+
+import (
+  "net/http"
+)
+
+func ego_flashes(w io.Writer, req *http.Request, flashes []any) { %>
+
+<div class="container">
+  <% for _, f := range flashes { %>
+    <div class="row alert alert-primary" role="alert">
+      <%= f %>
+    </div>
+  <% } %>
+</div>
+
+<% } %>
