@@ -14,7 +14,7 @@ int:
 	go run test/main.go
 
 db:
-	sqlite3 sparq.db
+	sqlite3 sparq.localhost.dev.db
 
 pdb:
 	sqlite3 sparq.social.contribsys.com.db
@@ -39,7 +39,7 @@ build: generate
 	go build -o sparq ./cmd/sparq
 
 clean:
-	rm -f redis.log faktory.rdb sparq.db
+	rm -f redis.log faktory.rdb sparq.localhost.dev.db
 
 tunnel:
 	open http://localhost:9494

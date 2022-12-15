@@ -29,22 +29,22 @@ type Tab struct {
 // ruby -rsecurerandom -e "puts SecureRandom.hex(32)"
 var sessionStore = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
 
-func LoggedInHandler(w http.ResponseWriter, r *http.Request) {
-	// this handler is called before all resources requiring a logged in user
-	// verify we have a user OR we'll redirect to /login
-	session, _ := sessionStore.Get(r, "sparq-session")
-	uid := session.Values["uid"]
-	if uid == nil {
-		session.Values["returnTo"] = r.Form
-		err := sessionStore.Save(r, w, session)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		http.Redirect(w, r, "/login", http.StatusFound)
-		return
-	}
-}
+// func LoggedInHandler(w http.ResponseWriter, r *http.Request) {
+// 	// this handler is called before all resources requiring a logged in user
+// 	// verify we have a user OR we'll redirect to /login
+// 	session, _ := sessionStore.Get(r, "sparq-session")
+// 	uid := session.Values["uid"]
+// 	if uid == nil {
+// 		session.Values["returnTo"] = r.Form
+// 		err := sessionStore.Save(r, w, session)
+// 		if err != nil {
+// 			http.Error(w, err.Error(), http.StatusInternalServerError)
+// 			return
+// 		}
+// 		http.Redirect(w, r, "/login", http.StatusFound)
+// 		return
+// 	}
+// }
 
 var (
 	DefaultTabs = []Tab{
@@ -87,17 +87,19 @@ func AddPublicEndpoints(s sparq.Server, root *mux.Router) {
 func requireLogin(fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		session, _ := sessionStore.Get(r, "sparq-session")
-		_, ok := session.Values["uid"]
+		uid, ok := session.Values["uid"]
 		if !ok {
 			if r.Form == nil {
 				_ = r.ParseForm()
 			}
+			util.Debugf("Anonymous, %s requires /login", r.URL.Path)
 			session.Values["returnForm"] = r.Form
 			session.AddFlash("Please sign in to continue")
 			_ = session.Save(r, w)
 			http.Redirect(w, r, "/login", http.StatusFound)
 			return
 		}
+		util.Debugf("Current UID: %d", uid)
 		fn(w, r)
 	}
 }

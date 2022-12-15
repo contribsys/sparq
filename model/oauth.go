@@ -33,21 +33,22 @@ func (x *OauthClient) GetUserID() string {
 }
 
 type OauthToken struct {
-	ClientId            string
-	UserId              int64
-	RedirectUri         string
-	Scope               string
-	Code                string
-	CodeChallenge       string
-	CodeChallengeMethod string
-	CodeCreateAt        time.Time
-	CodeExpiresIn       time.Duration
-	Access              string
-	AccessCreateAt      time.Time
-	AccessExpiresIn     time.Duration
-	Refresh             string
-	RefreshCreateAt     time.Time
-	RefreshExpiresIn    time.Duration
+	ClientId            string        `db:"ClientId"`
+	UserId              int64         `db:"UserId"`
+	RedirectUri         string        `db:"RedirectUri"`
+	Scope               string        `db:"Scope"`
+	Code                string        `db:"Code"`
+	CodeChallenge       string        `db:"CodeChallenge"`
+	CodeChallengeMethod string        `db:"CodeChallengeMethod"`
+	CodeCreatedAt       time.Time     `db:"CodeCreatedAt"`
+	CodeExpiresIn       time.Duration `db:"CodeExpiresIn"`
+	Access              string        `db:"Access"`
+	AccessCreatedAt     time.Time     `db:"AccessCreatedAt"`
+	AccessExpiresIn     time.Duration `db:"AccessExpiresIn"`
+	Refresh             string        `db:"Refresh"`
+	RefreshCreatedAt    time.Time     `db:"RefreshCreatedAt"`
+	RefreshExpiresIn    time.Duration `db:"RefreshExpiresIn"`
+	CreatedAt           time.Time     `db:"CreatedAt"`
 }
 
 func (ot *OauthToken) New() oauth2.TokenInfo {
@@ -99,11 +100,11 @@ func (ot *OauthToken) SetCode(s string) {
 }
 
 func (ot *OauthToken) GetCodeCreateAt() time.Time {
-	return ot.CodeCreateAt
+	return ot.CodeCreatedAt
 }
 
 func (ot *OauthToken) SetCodeCreateAt(s time.Time) {
-	ot.CodeCreateAt = s
+	ot.CodeCreatedAt = s
 }
 
 func (ot *OauthToken) GetCodeExpiresIn() time.Duration {
@@ -141,11 +142,11 @@ func (ot *OauthToken) SetAccess(s string) {
 }
 
 func (ot *OauthToken) GetAccessCreateAt() time.Time {
-	return ot.AccessCreateAt
+	return ot.AccessCreatedAt
 }
 
 func (ot *OauthToken) SetAccessCreateAt(s time.Time) {
-	ot.AccessCreateAt = s
+	ot.AccessCreatedAt = s
 }
 
 func (ot *OauthToken) GetAccessExpiresIn() time.Duration {
@@ -165,11 +166,11 @@ func (ot *OauthToken) SetRefresh(s string) {
 }
 
 func (ot *OauthToken) GetRefreshCreateAt() time.Time {
-	return ot.RefreshCreateAt
+	return ot.RefreshCreatedAt
 }
 
 func (ot *OauthToken) SetRefreshCreateAt(s time.Time) {
-	ot.RefreshCreateAt = s
+	ot.RefreshCreatedAt = s
 }
 
 func (ot *OauthToken) GetRefreshExpiresIn() time.Duration {

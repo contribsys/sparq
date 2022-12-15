@@ -3,7 +3,9 @@ package public
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -16,6 +18,10 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
+
+type stackTracer interface {
+	StackTrace() errors.StackTrace
+}
 
 // This is the code necessary to integrate go-oauth/oauth2 into Sparq.
 
@@ -50,22 +56,16 @@ func (scs *SqliteOauthStore) Delete(ctx context.Context, id string) error {
 
 func (scs *SqliteOauthStore) Create(ctx context.Context, info oauth2.TokenInfo) error {
 	fmt.Printf("Created OAuth token: %+v\n", info)
-	/*
-		_, err := scs.db.ExecContext(ctx, `INSERT INTO oauth_tokens (
-			ClientId, UserId, RedirectUri, Scope, CodeChallenge,
-			Code, CodeCreateAt, CodeExpiresIn,
-			Access, AccessCreateAt, AccessExpiresIn,
-			Refresh, RefreshCreateAt, RefreshExpiresIn)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?  ?, ?, ?)`,
-	*/
 	_, err := scs.db.ExecContext(ctx, `INSERT INTO oauth_tokens (
-		ClientId, UserId, RedirectUri, Scope, CodeChallenge,
-		Code, CodeCreateAt, CodeExpiresIn)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			ClientId, UserId, RedirectUri, Scope, CodeChallenge,
+			Code, CodeCreatedAt, CodeExpiresIn,
+			Access, AccessCreatedAt, AccessExpiresIn,
+			Refresh, RefreshCreatedAt, RefreshExpiresIn)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		info.GetClientID(), info.GetUserID(), info.GetRedirectURI(), info.GetScope(), info.GetCodeChallenge(),
-		info.GetCode(), info.GetCodeCreateAt(), info.GetCodeExpiresIn())
-	// info.GetAccess(), info.GetAccessCreateAt(), info.GetAccessExpiresIn(),
-	// info.GetRefresh(), info.GetRefreshCreateAt(), info.GetRefreshExpiresIn())
+		info.GetCode(), info.GetCodeCreateAt(), info.GetCodeExpiresIn(),
+		info.GetAccess(), info.GetAccessCreateAt(), info.GetAccessExpiresIn(),
+		info.GetRefresh(), info.GetRefreshCreateAt(), info.GetRefreshExpiresIn())
 	if err != nil {
 		return errors.Wrap(err, "insert")
 	}
@@ -92,7 +92,7 @@ func (scs *SqliteOauthStore) RemoveByRefresh(ctx context.Context, refresh string
 func (scs *SqliteOauthStore) getBy(ctx context.Context, name, value string) (oauth2.TokenInfo, error) {
 	fmt.Printf("get %s %s\n", name, value)
 	var token model.OauthToken
-	err := scs.db.QueryRowxContext(ctx, "select * from oauth_tokens where ? = ?", name, value).StructScan(&token)
+	err := scs.db.QueryRowxContext(ctx, fmt.Sprintf("select * from oauth_tokens where %s = ?", name), value).StructScan(&token)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return nil, errors.Wrap(err, "getBy")
@@ -123,7 +123,6 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) {
 		AllowedResponseTypes:  []oauth2.ResponseType{oauth2.CodeType},
 		AllowedGrantTypes: []oauth2.GrantType{
 			oauth2.AuthorizationCode,
-			oauth2.ClientCredentials,
 		},
 		AllowedCodeChallengeMethods: []oauth2.CodeChallengeMethod{
 			oauth2.CodeChallengePlain, oauth2.CodeChallengeS256},
@@ -154,10 +153,20 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) {
 	// })
 	srv.SetInternalErrorHandler(func(err error) (re *oauth2.Response) {
 		fmt.Println("internal oauth error:", err.Error())
+		if er, ok := err.(stackTracer); ok {
+			for _, f := range er.StackTrace() {
+				fmt.Printf("%+s:%d\n", f, f)
+			}
+		}
 		return
 	})
 	srv.SetResponseErrorHandler(func(re *oauth2.Response) {
 		fmt.Println("oauth response error:", re.Error.Error())
+		if err, ok := re.Error.(stackTracer); ok {
+			for _, f := range err.StackTrace() {
+				fmt.Printf("%+s:%d\n", f, f)
+			}
+		}
 	})
 	root.HandleFunc("/oauth/authorize", requireLogin(func(w http.ResponseWriter, r *http.Request) {
 		session, _ := sessionStore.Get(r, "sparq-session")
@@ -215,12 +224,34 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) {
 		ego_oauth_authorize(w, r, oc)
 	}))
 
-	root.HandleFunc("/oauth/token", requireLogin(func(w http.ResponseWriter, r *http.Request) {
+	root.HandleFunc("/oauth/token", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "OPTIONS" {
+			w.Header().Add("Cache-Control", "public, max-age=3600")
+			w.WriteHeader(204)
+			return
+		}
+		if r.Header.Get("Content-Type") == "application/json" {
+			bytes, err := io.ReadAll(r.Body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			data := map[string]string{}
+			err = json.Unmarshal(bytes, &data)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			r.Form = make(url.Values)
+			for k, v := range data {
+				r.Form.Set(k, v)
+			}
+		}
 		err := srv.HandleTokenRequest(w, r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		}
-	}))
+	})
 	srv.SetUserAuthorizationHandler(func(w http.ResponseWriter, r *http.Request) (string, error) {
 		session, _ := sessionStore.Get(r, "sparq-session")
 		uid := session.Values["uid"]

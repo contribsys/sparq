@@ -30,17 +30,18 @@ create table if not exists `oauth_tokens` (
 	Scope               string not null, 
 	Code                string not null, 
 	CodeChallenge       string,
-	CodeCreateAt        timestamp,
+	CodeCreatedAt        timestamp,
 	CodeExpiresIn       integer,
 	Access              string, 
-	AccessCreateAt      timestamp,
+	AccessCreatedAt      timestamp,
 	AccessExpiresIn     integer,
 	Refresh             string, 
-	RefreshCreateAt     timestamp,
+	RefreshCreatedAt     timestamp,
 	RefreshExpiresIn    integer,
   CreatedAt           timestamp not null default current_timestamp,
-  unique (Code),
-  unique (Access),
+  index(Code),
+  index(Access),
+  index(Refresh),
   foreign key (UserId) references users(id) on delete cascade 
   foreign key (ClientId) references oauth_clients(ClientId) on delete cascade 
 );

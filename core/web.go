@@ -22,7 +22,6 @@ func buildServer(s *Service) *http.Server {
 	root.Use(DebugLog)
 	root.Use(Cors)
 	apiv1 := root.PathPrefix("/api/v1").Subrouter()
-	apiv1.Use(Cors)
 	mastapi.AddPublicEndpoints(s, apiv1)
 
 	public.AddPublicEndpoints(s, root)
@@ -44,11 +43,11 @@ func buildServer(s *Service) *http.Server {
 
 func Cors(pass http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "OPTIONS" {
-			w.Header().Add("Access-Control-Allow-Origin", "*")
-			w.Header().Add("Access-Control-Allow-Methods", "POST, PUT, DELETE, GET, PATCH, OPTIONS")
-			w.Header().Add("Access-Control-Allow-Headers", "*")
-		}
+		// if r.Method == "OPTIONS" {
+		w.Header().Add("Access-Control-Allow-Origin", "*")
+		w.Header().Add("Access-Control-Allow-Methods", "POST, PUT, DELETE, GET, PATCH, OPTIONS")
+		w.Header().Add("Access-Control-Allow-Headers", "*")
+		// }
 		pass.ServeHTTP(w, r)
 	})
 }
@@ -64,6 +63,14 @@ func Log(pass http.Handler) http.Handler {
 
 func DebugLog(pass http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" {
+			err := r.ParseForm()
+			if err != nil {
+				util.Warnf("Unable to parse POST: %v", err)
+				http.Error(w, err.Error(), 400)
+				return
+			}
+		}
 		data, _ := httputil.DumpRequest(r, r.Method == "POST")
 		os.Stdout.Write(data)
 		if r.Method == "POST" {
