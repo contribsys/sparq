@@ -39,12 +39,13 @@ create table if not exists `oauth_tokens` (
 	RefreshCreatedAt     timestamp,
 	RefreshExpiresIn    integer,
   CreatedAt           timestamp not null default current_timestamp,
-  index(Code),
-  index(Access),
-  index(Refresh),
   foreign key (UserId) references users(id) on delete cascade 
   foreign key (ClientId) references oauth_clients(ClientId) on delete cascade 
 );
+create index idx_oauth_tokens_code on oauth_tokens(code);
+create index idx_oauth_tokens_access on oauth_tokens(access);
+create index idx_oauth_tokens_refresh on oauth_tokens(refresh);
+
 create table if not exists `user_attributes` (
   Id         integer primary key,
   UserId     integer not null,

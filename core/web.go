@@ -19,14 +19,13 @@ func buildServer(s *Service) *http.Server {
 	if s.Options.LogLevel == "debug" {
 		root.NotFoundHandler = DebugLog(http.NotFoundHandler())
 	}
+	bearer := public.IntegrateOauth(s, root)
 	root.Use(DebugLog)
 	root.Use(Cors)
+	root.Use(bearer)
 	apiv1 := root.PathPrefix("/api/v1").Subrouter()
 	mastapi.AddPublicEndpoints(s, apiv1)
-
 	public.AddPublicEndpoints(s, root)
-
-	public.IntegrateOauth(s, root)
 	// s.FaktoryUI.Embed(root, "/faktory")
 	// s.AdminUI.Embed(root, "/admin")
 	wellknown.AddPublicEndpoints(root)
@@ -43,11 +42,14 @@ func buildServer(s *Service) *http.Server {
 
 func Cors(pass http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// if r.Method == "OPTIONS" {
-		w.Header().Add("Access-Control-Allow-Origin", "*")
-		w.Header().Add("Access-Control-Allow-Methods", "POST, PUT, DELETE, GET, PATCH, OPTIONS")
-		w.Header().Add("Access-Control-Allow-Headers", "*")
-		// }
+		if r.Method == "OPTIONS" {
+			w.Header().Add("Access-Control-Allow-Origin", "*")
+			w.Header().Add("Access-Control-Allow-Methods", "POST, PUT, DELETE, GET, PATCH, OPTIONS")
+			w.Header().Add("Access-Control-Allow-Headers", "*")
+			w.Header().Add("Cache-Control", "public, max-age=3600")
+			w.WriteHeader(204)
+			return
+		}
 		pass.ServeHTTP(w, r)
 	})
 }

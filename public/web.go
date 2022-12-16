@@ -73,7 +73,7 @@ func setCtx(pass http.Handler) http.Handler {
 func AddPublicEndpoints(s sparq.Server, root *mux.Router) {
 	root.Use(setCtx)
 	root.PathPrefix("/static").Handler(staticHandler)
-	root.HandleFunc("/users/{nick:[a-z0-9]{4,16}}", getUser)
+	root.HandleFunc("/users/{nick:[a-z0-9]{4,20}}", getUser)
 	root.HandleFunc("/home", requireLogin(indexHandler))
 	root.HandleFunc("/login", loginHandler(s))
 	root.HandleFunc("/logout", logoutHandler(s))

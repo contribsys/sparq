@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
+	"time"
 
 	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/db"
@@ -111,7 +113,34 @@ func (scs *SqliteOauthStore) GetByRefresh(ctx context.Context, refresh string) (
 	return scs.getBy(ctx, "refresh", refresh)
 }
 
-func IntegrateOauth(s sparq.Server, root *mux.Router) {
+func BearerAuth(store oauth2.TokenStore) func(http.Handler) http.Handler {
+	return func(pass http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			auth := r.Header.Get("Authorization")
+			prefix := "Bearer "
+			token := ""
+
+			if auth != "" && strings.HasPrefix(auth, prefix) {
+				token = auth[len(prefix):]
+				ti, err := store.GetByAccess(r.Context(), token)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				if ti == nil || ti.GetAccessCreateAt().Add(ti.GetAccessExpiresIn()).Before(time.Now()) {
+					// access token has expired
+					w.Header().Add("Content-Type", "application/json")
+					w.WriteHeader(http.StatusUnauthorized)
+					_, _ = w.Write([]byte(`{ "error": "invalid_token", "error_description": "The access token expired" }`))
+					return
+				}
+			}
+			pass.ServeHTTP(w, r)
+		})
+	}
+}
+
+func IntegrateOauth(s sparq.Server, root *mux.Router) mux.MiddlewareFunc {
 	manager := oauth2.NewDefaultManager()
 	store := &SqliteOauthStore{db.Database()}
 	manager.MapTokenStorage(store)
@@ -257,4 +286,5 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) {
 		uid := session.Values["uid"]
 		return fmt.Sprint(uid), nil
 	})
+	return BearerAuth(store)
 }
