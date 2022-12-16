@@ -1,4 +1,4 @@
-package mastapi
+package clientapi
 
 import (
 	"fmt"

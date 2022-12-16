@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/contribsys/sparq"
-	"github.com/contribsys/sparq/mastapi"
+	"github.com/contribsys/sparq/clientapi"
 	"github.com/contribsys/sparq/public"
 	"github.com/contribsys/sparq/util"
 	"github.com/contribsys/sparq/wellknown"
@@ -24,7 +24,7 @@ func buildServer(s *Service) *http.Server {
 	root.Use(Cors)
 	root.Use(bearer)
 	apiv1 := root.PathPrefix("/api/v1").Subrouter()
-	mastapi.AddPublicEndpoints(s, apiv1)
+	clientapi.AddPublicEndpoints(s, apiv1)
 	public.AddPublicEndpoints(s, root)
 	// s.FaktoryUI.Embed(root, "/faktory")
 	// s.AdminUI.Embed(root, "/admin")
