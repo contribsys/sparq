@@ -131,8 +131,8 @@ func loginHandler(s sparq.Server) http.HandlerFunc {
 			var hash []byte
 			err := s.DB().QueryRowxContext(r.Context(), `
 			  select us.UserId, us.PasswordHash
-				from users u join user_securities us
-				on u.Id = us.UserId
+				from accounts	u join account_securities us
+				on u.Id = us.AccountId
 				where u.Nick = ?`, username).Scan(&uid, &hash)
 			if err != nil {
 				if err == sql.ErrNoRows {
@@ -173,11 +173,10 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 
 	userdata := map[string]interface{}{}
 	err := db.Database().QueryRowx(`
-	select *
-	from users
-	inner join user_securities
-	on users.id = user_securities.userid
-	where users.nick = ?`, nick).MapScan(userdata)
+	select * from accounts	
+	inner join account_securities
+	on accounts.id = account_securities.accountid
+	where accounts.nick = ?`, nick).MapScan(userdata)
 	if err == sql.ErrNoRows {
 		http.Error(w, "Not found", http.StatusNotFound)
 		return

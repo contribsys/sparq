@@ -30,7 +30,7 @@ func (r *result) URI() string {
 func fingerLookup(ctx context.Context, db *sqlx.DB, username, host string) (*result, error) {
 	// user := map[string]any{}
 	var r result
-	err := db.Get(&r, `select Nick from users where lower(Nick) = ?`,
+	err := db.Get(&r, `select Nick from accounts where lower(Nick) = ?`,
 		strings.ToLower(username))
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound
@@ -113,7 +113,7 @@ func AddPublicEndpoints(mux *mux.Router) {
 		resp.Header().Add("Cache-Control", "public, max-age=600")
 
 		var userCount int
-		err := db.Database().QueryRow("select count(*) from users").Scan(&userCount)
+		err := db.Database().QueryRow("select count(*) from accounts").Scan(&userCount)
 		if err != nil {
 			http.Error(resp, err.Error(), http.StatusInternalServerError)
 			return

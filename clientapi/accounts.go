@@ -3,13 +3,14 @@ package clientapi
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
-	"strconv"
+	"text/template"
 
 	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/db"
+	"github.com/contribsys/sparq/model"
+	"github.com/contribsys/sparq/util"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 )
@@ -50,37 +51,65 @@ var sessionStore = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
 
 func verifyCredentialsHandler(s sparq.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		uid := requireLogin(w, r)
-		if uid == 0 {
-			return
-		}
-		// verifyToken
+		session, _ := sessionStore.Get(r, "sparq-session")
+		uid := session.Values["uid"]
+
 		// lookupUserAccount
+		var acct model.Account
+		err := s.DB().QueryRowxContext(r.Context(), "select * from accounts where id = ?", uid).StructScan(&acct)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+
+		// render JSON template
 		w.Header().Add("Content-Type", "application/json")
-		_, _ = w.Write([]byte(fmt.Sprintf(`{"id": "%d"}`, uid)))
+		err = accountCredentialTemplate.Execute(w, &acct)
+		if err != nil {
+			util.Error("Unable to execute template", err)
+		}
 	}
 }
 
-func requireLogin(w http.ResponseWriter, r *http.Request) int {
-	session, _ := sessionStore.Get(r, "sparq-session")
-	val, ok := session.Values["uid"]
-	if !ok {
-		http.Redirect(w, r, "/login", http.StatusFound)
-		return 0
-	}
-	uid, err := strconv.Atoi(val.(string))
-	if err != nil {
-		return 0
-	}
-	return uid
+var (
+	accountCredentialTemplate = template.Must(template.New("accountCredential").Parse(`
+{
+  "id": "{{.Id}}",
+  "username": "{{.Nick}}",
+  "acct": "{{.Nick}}",
+  "display_name": "{{.FullName}}",
+  "locked": false,
+  "bot": false,
+  "created_at": "{{.Created}}",
+  "note": "",
+  "url": "{{.URI}}",
+  "avatar": "https://files.mastodon.social/accounts/avatars/000/014/715/original/34aa222f4ae2e0a9.png",
+  "avatar_static": "https://files.mastodon.social/accounts/avatars/000/014/715/original/34aa222f4ae2e0a9.png",
+  "header": "https://files.mastodon.social/accounts/headers/000/014/715/original/5c6fc24edb3bb873.jpg",
+  "header_static": "https://files.mastodon.social/accounts/headers/000/014/715/original/5c6fc24edb3bb873.jpg",
+  "followers_count": 0,
+  "following_count": 0,
+  "statuses_count": 0,
+  "last_status_at": "{{.Created}}",
+  "source": {
+    "privacy": "public",
+    "sensitive": false,
+    "language": "en",
+    "note": "",
+    "fields": [],
+    "follow_requests_count": 0
+  },
+  "emojis": [],
+  "fields": []
 }
+`))
+)
 
 func getAccountStatuses(w http.ResponseWriter, r *http.Request) {
 	sfid := mux.Vars(r)["sfid"]
 	rows, err := db.Database().Queryx(`
 	  select posts.* from posts
 		inner join actors on posts.authorid = actors.id
-		inner join users on users.id = actors.userid
+		inner join accounts on accounts.id = actors.userid
 		where users.sfid = ?
 		order by posts.uri DESC
 		limit 50

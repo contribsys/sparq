@@ -22,19 +22,25 @@ const (
 	RoleAll RoleMask = RoleUser | RoleModerator | RoleAdmin
 )
 
-type User struct {
-	Id       int64
-	Sfid     string
-	FullName string
-	Nick     string
-	Email    string
-	RoleMask RoleMask
+type Account struct {
+	Id        int64      `db:"Id"`
+	Sfid      string     `db:"Sfid"`
+	FullName  string     `db:"FullName"`
+	Nick      string     `db:"Nick"`
+	Email     string     `db:"Email"`
+	CreatedAt *time.Time `db:"CreatedAt"`
+	UpdatedAt *time.Time `db:"UpdatedAt"`
+	RoleMask  RoleMask   `db:"RoleMask"`
 	// Profile  *AccountProfile
 	*UserSecurity
 }
 
-func (u *User) URI() string {
-	return fmt.Sprintf("https://%s/@%s", db.InstanceHostname, u.Nick)
+func (a *Account) URI() string {
+	return fmt.Sprintf("https://%s/@%s", db.InstanceHostname, a.Nick)
+}
+
+func (a *Account) Created() string {
+	return util.Thens(*a.CreatedAt)
 }
 
 var (

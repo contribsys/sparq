@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -20,10 +21,10 @@ type accessGenerate struct {
 }
 
 // Token based on the UUID generated token
-func (ag *accessGenerate) Token(ctx context.Context, data *GenerateBasic, isGenRefresh bool) (string, string, error) {
-	buf := bytes.NewBufferString(data.Client.GetID())
-	buf.WriteString(data.UserID)
-	buf.WriteString(strconv.FormatInt(data.CreateAt.UnixNano(), 10))
+func (ag *accessGenerate) Token(ctx context.Context, clientId, userId string, createdAt time.Time, isGenRefresh bool) (string, string, error) {
+	buf := bytes.NewBufferString(clientId)
+	buf.WriteString(userId)
+	buf.WriteString(strconv.FormatInt(createdAt.UnixNano(), 10))
 
 	access := base64.URLEncoding.EncodeToString([]byte(uuid.NewMD5(uuid.Must(uuid.NewRandom()), buf.Bytes()).String()))
 	access = strings.ToUpper(strings.TrimRight(access, "="))

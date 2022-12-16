@@ -31,8 +31,8 @@ func TestPublicOauth(t *testing.T) {
 		assert.Contains(t, w.Body.String(), "/login")
 	})
 	route(r, "/oauth/token", func(w *httptest.ResponseRecorder, req *http.Request) {
-		assert.Equal(t, 302, w.Code)
-		assert.Contains(t, w.Body.String(), "/login")
+		assert.Equal(t, 401, w.Code)
+		assert.Contains(t, w.Body.String(), "error")
 	})
 	route(r, "/oauth/authorize?client_id=93e60c83-3c57-42ac-abaf-be6bc7ad2e68&redirect_uri=http%3A%2F%2Flocalhost%3A4002%2Fsettings%2Finstances%2Fadd&response_type=code&scope=read%20write%20follow%20push", func(w *httptest.ResponseRecorder, req *http.Request) {
 		assert.Equal(t, 302, w.Code)
@@ -44,7 +44,7 @@ func TestPublicOauth(t *testing.T) {
 	 ("93e60c83-3c57-42ac-abaf-be6bc7ad2e68", "Pinafore", "123456789abcdef", "http://localhost:4002/settings/instances/add", "http://localhost:4002", "read write follow push")`)
 	assert.NoError(t, err)
 
-	sos := &SqliteOauthStore{db: db.Database()}
+	sos := &SqliteOauthStore{DB: db.Database()}
 	ci, err := sos.GetByID(context.Background(), "93e60c83-3c57-42ac-abaf-be6bc7ad2e68")
 	assert.NoError(t, err)
 	assert.NotNil(t, ci)
@@ -99,4 +99,8 @@ func (ts *testSvr) DB() *sqlx.DB {
 
 func (ts *testSvr) Hostname() string {
 	return "localhost.dev"
+}
+
+func (ts *testSvr) LogLevel() string {
+	return "debug"
 }

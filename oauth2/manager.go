@@ -196,7 +196,7 @@ func (m *manager) GenerateAuthToken(ctx context.Context, rt ResponseType, tgr *T
 			ti.SetRefreshExpiresIn(icfg.RefreshTokenExp)
 		}
 
-		tv, rv, err := m.accessGenerate.Token(ctx, td, icfg.IsGenerateRefresh)
+		tv, rv, err := m.accessGenerate.Token(ctx, td.Client.GetID(), td.UserID, td.CreateAt, icfg.IsGenerateRefresh)
 		if err != nil {
 			return nil, err
 		}
@@ -326,15 +326,7 @@ func (m *manager) GenerateAccessToken(ctx context.Context, gt GrantType, tgr *To
 		ti.SetRefreshExpiresIn(gcfg.RefreshTokenExp)
 	}
 
-	td := &GenerateBasic{
-		Client:    cli,
-		UserID:    tgr.UserID,
-		CreateAt:  createAt,
-		TokenInfo: ti,
-		Request:   tgr.Request,
-	}
-
-	av, rv, err := m.accessGenerate.Token(ctx, td, gcfg.IsGenerateRefresh)
+	av, rv, err := m.accessGenerate.Token(ctx, cli.GetID(), tgr.UserID, createAt, gcfg.IsGenerateRefresh)
 	if err != nil {
 		return nil, err
 	}
@@ -366,20 +358,13 @@ func (m *manager) RefreshAccessToken(ctx context.Context, tgr *TokenGenerateRequ
 
 	oldAccess, oldRefresh := ti.GetAccess(), ti.GetRefresh()
 
-	td := &GenerateBasic{
-		Client:    cli,
-		UserID:    ti.GetUserID(),
-		CreateAt:  time.Now(),
-		TokenInfo: ti,
-		Request:   tgr.Request,
-	}
-
 	rcfg := DefaultRefreshTokenCfg
 	if v := m.rcfg; v != nil {
 		rcfg = v
 	}
 
-	ti.SetAccessCreateAt(td.CreateAt)
+	createAt := time.Now()
+	ti.SetAccessCreateAt(createAt)
 	if v := rcfg.AccessTokenExp; v > 0 {
 		ti.SetAccessExpiresIn(v)
 	}
@@ -389,14 +374,14 @@ func (m *manager) RefreshAccessToken(ctx context.Context, tgr *TokenGenerateRequ
 	}
 
 	if rcfg.IsResetRefreshTime {
-		ti.SetRefreshCreateAt(td.CreateAt)
+		ti.SetRefreshCreateAt(createAt)
 	}
 
 	if scope := tgr.Scope; scope != "" {
 		ti.SetScope(scope)
 	}
 
-	tv, rv, err := m.accessGenerate.Token(ctx, td, rcfg.IsGenerateRefresh)
+	tv, rv, err := m.accessGenerate.Token(ctx, cli.GetID(), ti.GetUserID(), time.Now(), rcfg.IsGenerateRefresh)
 	if err != nil {
 		return nil, err
 	}

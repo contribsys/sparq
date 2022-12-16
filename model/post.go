@@ -2,6 +2,8 @@ package model
 
 import (
 	"fmt"
+
+	"github.com/contribsys/sparq/db"
 )
 
 type Visibility int
@@ -11,11 +13,11 @@ var (
 	MentionedOnly Visibility = 1
 )
 
-func NewPost(author *User, inReplyTo *Post, summary string, content string, visibility Visibility) *Post {
+func NewPost(author *Account, inReplyTo *Post, summary string, content string, visibility Visibility) *Post {
 	sid := Snowflakes.NextID()
 	p := &Post{
 		AttributedTo: author.URI(),
-		URI:          fmt.Sprintf("https://localhost.dev/@%s/statuses/%d", author.Nick, sid),
+		URI:          fmt.Sprintf("https://%s/@%s/statuses/%d", db.InstanceHostname, author.Nick, sid),
 		Summary:      summary,
 		Content:      content,
 		Visibility:   Public,

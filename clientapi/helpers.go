@@ -1,17 +1,20 @@
-package core
+package clientapi
 
 import (
+	"context"
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"testing"
 	"time"
 
 	"github.com/contribsys/sparq"
-	"github.com/contribsys/sparq/clientapi"
+	"github.com/contribsys/sparq/model"
+	"github.com/contribsys/sparq/oauth2"
 	"github.com/contribsys/sparq/public"
 	"github.com/contribsys/sparq/util"
-	"github.com/contribsys/sparq/wellknown"
 	"github.com/gorilla/mux"
+	"github.com/stretchr/testify/assert"
 )
 
 func rootRouter(s sparq.Server) *mux.Router {
@@ -24,25 +27,29 @@ func rootRouter(s sparq.Server) *mux.Router {
 	return root
 }
 
-func BuildWeb(s *Service) *http.Server {
-	root := rootRouter(s)
-	bearer := public.IntegrateOauth(s, root)
-	root.Use(bearer)
-	apiv1 := root.PathPrefix("/api/v1").Subrouter()
-	clientapi.AddPublicEndpoints(s, apiv1)
-	public.AddPublicEndpoints(s, root)
-	// s.FaktoryUI.Embed(root, "/faktory")
-	// s.AdminUI.Embed(root, "/admin")
-	wellknown.AddPublicEndpoints(root)
-
-	ht := &http.Server{
-		Addr:           s.Binding,
-		ReadTimeout:    2 * time.Second,
-		WriteTimeout:   10 * time.Second,
-		MaxHeaderBytes: 1 << 16,
-		Handler:        root,
+// returns the access token or error
+func registerToken(t *testing.T, s sparq.Server) (string, error) {
+	ag := oauth2.NewAccessGenerate()
+	createdAt := time.Now()
+	token, _, err := ag.Token(context.Background(), "1234-5678-90", "1", createdAt, false)
+	assert.NoError(t, err)
+	ti := &model.OauthToken{
+		ClientId:        "1234-5678-90",
+		UserId:          1,
+		RedirectUri:     "https://example.com/oauth-client/add",
+		Scope:           "read write follow push",
+		Access:          token,
+		AccessCreatedAt: createdAt,
+		AccessExpiresIn: 2 * time.Hour,
+		CreatedAt:       createdAt,
 	}
-	return ht
+	store := &public.SqliteOauthStore{DB: s.DB()}
+	err = store.Create(context.Background(), ti)
+	assert.NoError(t, err)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
 }
 
 func Cors(pass http.Handler) http.Handler {

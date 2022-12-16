@@ -10,10 +10,10 @@ import (
 
 var (
 	newUserInsert = `
-		insert into users (Id, Sfid, Nick, Email, FullName, RoleMask)
+		insert into accounts (Id, Sfid, Nick, Email, FullName, RoleMask)
 		values (?, ?, ?, ?, ?, ?)`
 	newSecurityInsert = `
-		insert into user_securities (UserId, PasswordHash, PublicKey, PrivateKey)
+		insert into account_securities (AccountId, PasswordHash, PublicKey, PrivateKey)
 		values (?, ?, ?, ?)`
 	newPostInsert = `
 		insert into posts (URI, AuthorId, InReplyTo, Summary, Content)
@@ -60,7 +60,7 @@ func noRows(query string, args ...any) bool {
 }
 
 func createAdmin() error {
-	if noRows("select * from users where id = ?", 1) {
+	if noRows("select * from accounts where id = ?", 1) {
 		fmt.Println("Creating admin user")
 		_, err := db.Exec(newUserInsert, 1, "116672815607840768", "admin", "admin@"+InstanceHostname, "Sparq Admin", -1)
 		if err != nil {
@@ -76,7 +76,7 @@ func createAdmin() error {
 		if err != nil {
 			return err
 		}
-		_, err = db.Exec("insert into actors (Id,UserId) values (?, ?)",
+		_, err = db.Exec("insert into actors (Id,AccountId) values (?, ?)",
 			"https://"+InstanceHostname+"/@admin", 1)
 		if err != nil {
 			return err

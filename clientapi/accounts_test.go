@@ -2,31 +2,61 @@ package clientapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/contribsys/sparq/db"
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestInstance(t *testing.T) {
-	stopper, err := db.TestDB("instance")
+func jsonPayload(t *testing.T, w *httptest.ResponseRecorder) map[string]interface{} {
+	if w.Header().Get("Content-Type") != "application/json" {
+		return map[string]interface{}{"content": w.Body.String()}
+	}
+
+	fmt.Println(w.Body.String())
+
+	var payload map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &payload)
+	// fmt.Printf("JSON response: %+v\n", payload)
+	assert.NoError(t, err)
+	return payload
+}
+
+func TestAccounts(t *testing.T) {
+	stopper, err := db.TestDB("accounts")
 	assert.NoError(t, err)
 	defer stopper()
 	ts := &testSvr{}
+	root := rootRouter(ts)
+	AddPublicEndpoints(ts, root.PathPrefix("/api/v1").Subrouter())
 
-	t.Run("instance", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "http://localhost.dev:9494/api/v1/instance", nil)
+	t.Run("verify_credentials", func(t *testing.T) {
+		req := httptest.NewRequest("OPTIONS", "http://localhost.dev:9494/api/v1/accounts/verify_credentials", nil)
 		w := httptest.NewRecorder()
-		instanceHandler(ts)(w, req)
-		assert.Equal(t, w.Code, 200)
-		assert.Contains(t, w.Body.String(), `"domain": "localhost.dev",`)
+		root.ServeHTTP(w, req)
+		assert.Equal(t, 204, w.Code)
 
-		var testy map[string]interface{}
-		err := json.Unmarshal(w.Body.Bytes(), &testy)
+		req = httptest.NewRequest("GET", "http://localhost.dev:9494/api/v1/accounts/verify_credentials", nil)
+		req.Header.Add("Authorization", "Bearer 1234567")
+		w = httptest.NewRecorder()
+		root.ServeHTTP(w, req)
+		assert.Equal(t, 401, w.Code)
+
+		token, err := registerToken(t, ts)
 		assert.NoError(t, err)
+
+		req = httptest.NewRequest("GET", "http://localhost.dev:9494/api/v1/accounts/verify_credentials", nil)
+		req.Header.Add("Authorization", "Bearer "+token)
+		w = httptest.NewRecorder()
+		root.ServeHTTP(w, req)
+		assert.Equal(t, 200, w.Code)
+
+		payload := jsonPayload(t, w)
+		assert.NotNil(t, payload)
+		assert.Contains(t, payload, "id")
 	})
 
 	t.Run("apps", func(t *testing.T) {
@@ -69,19 +99,4 @@ func TestInstance(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 1, count)
 	})
-}
-
-type testSvr struct {
-}
-
-func (ts *testSvr) DB() *sqlx.DB {
-	return db.Database()
-}
-
-func (ts *testSvr) Hostname() string {
-	return "localhost.dev"
-}
-
-func (ts *testSvr) LogLevel() string {
-	return "debug"
 }

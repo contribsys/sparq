@@ -1,5 +1,5 @@
 -- +goose Up
-create table if not exists `users` (
+create table if not exists `accounts` (
   Id         integer primary key,
   Sfid       string not null, -- snowflake id
   FullName   string not null,
@@ -21,7 +21,7 @@ create table if not exists `oauth_clients` (
   Scopes         string not null default "read",
   CreatedAt      timestamp not null default current_timestamp,
   unique (ClientId),
-  foreign key (UserId) references users(id) on delete cascade 
+  foreign key (UserId) references accounts(id) on delete cascade 
 );
 create table if not exists `oauth_tokens` (
 	ClientId            string not null,
@@ -39,41 +39,41 @@ create table if not exists `oauth_tokens` (
 	RefreshCreatedAt     timestamp,
 	RefreshExpiresIn    integer,
   CreatedAt           timestamp not null default current_timestamp,
-  foreign key (UserId) references users(id) on delete cascade 
+  foreign key (UserId) references accounts(id) on delete cascade 
   foreign key (ClientId) references oauth_clients(ClientId) on delete cascade 
 );
 create index idx_oauth_tokens_code on oauth_tokens(code);
 create index idx_oauth_tokens_access on oauth_tokens(access);
 create index idx_oauth_tokens_refresh on oauth_tokens(refresh);
 
-create table if not exists `user_attributes` (
+create table if not exists `account_attributes` (
   Id         integer primary key,
-  UserId     integer not null,
+  AccountId  integer not null,
   Name       string not null,
   Value      string not null,
-  foreign key (UserId) references users(id) on delete cascade 
+  foreign key (AccountId) references accounts(id) on delete cascade 
 );
-create table if not exists `user_securities` (
-  UserId        integer primary key,
+create table if not exists `account_securities` (
+  AccountId     integer primary key,
   PasswordHash  blob not null,
   PublicKey     string not null,
   PrivateKey    string not null,
-  foreign key (UserId) references users(id) on delete cascade 
+  foreign key (AccountId) references accounts(id) on delete cascade 
 );
 create table if not exists `collections` (
   Id integer primary key,
-  UserId integer not null,
+  AccountId integer not null,
   Title string not null,
   Description string not null,
   Visibility integer not null default 0,
-  foreign key (UserId) references users(id) on delete cascade 
+  foreign key (AccountId) references accounts(id) on delete cascade 
 );
 create table if not exists `actors` (
   Id string primary key, -- "https://instance.domain/@username"
-  UserId integer, -- if this is a local user, this will be non-null
+  AccountId integer, -- if this is a local user, this will be non-null
   Inbox string, -- "https://instance.domain/@username/inbox"
   SharedInbox string, -- "https://instance.domain/@username"
-  foreign key (UserId) references users(id) on delete cascade
+  foreign key (AccountId) references accounts(id) on delete cascade
 );
 create table if not exists `posts` (
   Id integer primary key,

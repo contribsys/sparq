@@ -44,6 +44,10 @@ func (s *Service) DB() *sqlx.DB {
 	return db.Database()
 }
 
+func (s *Service) LogLevel() string {
+	return s.Options.LogLevel
+}
+
 func (s *Service) Hostname() string {
 	return s.Options.Hostname
 }
@@ -85,7 +89,7 @@ func (s *Service) Run() error {
 	// This is the context which signals that we are starting
 	// the shutdown process
 
-	s.https = buildServer(s)
+	s.https = BuildWeb(s)
 
 	util.Infof("Web now running at %s", s.Binding)
 	go func() {

@@ -103,7 +103,7 @@ func appsHandler(svr sparq.Server) http.HandlerFunc {
 func instanceHandler(svr sparq.Server) http.HandlerFunc {
 	instanceTemplate = template.Must(template.New("instance").Parse(instanceText))
 	admin := map[string]interface{}{}
-	err := svr.DB().QueryRowx("select * from users where id = 1").MapScan(admin)
+	err := svr.DB().QueryRowx("select * from accounts where id = 1").MapScan(admin)
 	if err != nil {
 		panic(err.Error())
 	}

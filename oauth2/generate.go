@@ -23,6 +23,6 @@ type (
 
 	// AccessGenerate generate the access and refresh tokens interface
 	AccessGenerate interface {
-		Token(ctx context.Context, data *GenerateBasic, isGenRefresh bool) (access, refresh string, err error)
+		Token(ctx context.Context, clientId, userId string, createdAt time.Time, isGenRefresh bool) (access, refresh string, err error)
 	}
 )

@@ -28,13 +28,13 @@ type stackTracer interface {
 // This is the code necessary to integrate go-oauth/oauth2 into Sparq.
 
 type SqliteOauthStore struct {
-	db *sqlx.DB
+	DB *sqlx.DB
 }
 
 func (scs *SqliteOauthStore) GetByID(ctx context.Context, id string) (oauth2.ClientInfo, error) {
 	var client model.OauthClient
 	util.Infof("Finding OAuth client %s", id)
-	row := scs.db.QueryRowxContext(ctx, "select * from oauth_clients where ClientId = ?", id)
+	row := scs.DB.QueryRowxContext(ctx, "select * from oauth_clients where ClientId = ?", id)
 	if err := row.Err(); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -53,12 +53,12 @@ func (scs *SqliteOauthStore) Set(ctx context.Context, id string, cli oauth2.Clie
 }
 
 func (scs *SqliteOauthStore) Delete(ctx context.Context, id string) error {
-	return wrap(scs.db.ExecContext(ctx, "delete from oauth_clients where ClientId = ?", id))
+	return wrap(scs.DB.ExecContext(ctx, "delete from oauth_clients where ClientId = ?", id))
 }
 
 func (scs *SqliteOauthStore) Create(ctx context.Context, info oauth2.TokenInfo) error {
 	fmt.Printf("Created OAuth token: %+v\n", info)
-	_, err := scs.db.ExecContext(ctx, `INSERT INTO oauth_tokens (
+	_, err := scs.DB.ExecContext(ctx, `INSERT INTO oauth_tokens (
 			ClientId, UserId, RedirectUri, Scope, CodeChallenge,
 			Code, CodeCreatedAt, CodeExpiresIn,
 			Access, AccessCreatedAt, AccessExpiresIn,
@@ -83,18 +83,18 @@ func wrap(_ any, err error) error {
 	return nil
 }
 func (scs *SqliteOauthStore) RemoveByCode(ctx context.Context, code string) error {
-	return wrap(scs.db.ExecContext(ctx, "delete from oauth_tokens where code = ?", code))
+	return wrap(scs.DB.ExecContext(ctx, "delete from oauth_tokens where code = ?", code))
 }
 func (scs *SqliteOauthStore) RemoveByAccess(ctx context.Context, access string) error {
-	return wrap(scs.db.ExecContext(ctx, "delete from oauth_tokens where access = ?", access))
+	return wrap(scs.DB.ExecContext(ctx, "delete from oauth_tokens where access = ?", access))
 }
 func (scs *SqliteOauthStore) RemoveByRefresh(ctx context.Context, refresh string) error {
-	return wrap(scs.db.ExecContext(ctx, "delete from oauth_tokens where refresh = ?", refresh))
+	return wrap(scs.DB.ExecContext(ctx, "delete from oauth_tokens where refresh = ?", refresh))
 }
 func (scs *SqliteOauthStore) getBy(ctx context.Context, name, value string) (oauth2.TokenInfo, error) {
 	fmt.Printf("get %s %s\n", name, value)
 	var token model.OauthToken
-	err := scs.db.QueryRowxContext(ctx, fmt.Sprintf("select * from oauth_tokens where %s = ?", name), value).StructScan(&token)
+	err := scs.DB.QueryRowxContext(ctx, fmt.Sprintf("select * from oauth_tokens where %s = ?", name), value).StructScan(&token)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return nil, errors.Wrap(err, "getBy")
@@ -134,6 +134,13 @@ func BearerAuth(store oauth2.TokenStore) func(http.Handler) http.Handler {
 					_, _ = w.Write([]byte(`{ "error": "invalid_token", "error_description": "The access token expired" }`))
 					return
 				}
+				session, _ := sessionStore.Get(r, "sparq-session")
+				val, ok := session.Values["uid"]
+				if !ok {
+					session.Values["uid"] = ti.GetUserID()
+				} else if val != ti.GetUserID() {
+					fmt.Println("Bearer: ", val, ti.GetUserID())
+				}
 			}
 			pass.ServeHTTP(w, r)
 		})
@@ -159,27 +166,6 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) mux.MiddlewareFunc {
 	srv := oauth2.NewServer(sc, manager)
 	srv.SetAllowGetAccessRequest(true)
 	srv.SetClientInfoHandler(oauth2.ClientFormHandler)
-	// srv.SetPasswordAuthorizationHandler(func(ctx context.Context, clientID, username, password string) (string, error) {
-	// 	fmt.Println(clientID, username, password)
-	// 	var uid int64
-	// 	var hash []byte
-	// 	err := s.DB().QueryRowxContext(ctx, `
-	// 		select us.Id, us.PasswordHash
-	// 		from user_securities us join users u
-	// 		on u.id = us.user_id
-	// 		where users.Nick = ?`, strings.ToLower(username)).Scan(&uid, &hash)
-	// 	if err != nil {
-	// 		return "", errors.Wrap(err, username)
-	// 	}
-	// 	pwdhash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
-	// 	if err != nil {
-	// 		return "", errors.Wrap(err, "bcrypt")
-	// 	}
-	// 	if uid > 0 && subtle.ConstantTimeCompare(hash, pwdhash) == 1 {
-	// 		return strconv.FormatInt(uid, 10), nil
-	// 	}
-	// 	return "", errors.New("Invalid username or password")
-	// })
 	srv.SetInternalErrorHandler(func(err error) (re *oauth2.Response) {
 		fmt.Println("internal oauth error:", err.Error())
 		if er, ok := err.(stackTracer); ok {
@@ -254,11 +240,6 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) mux.MiddlewareFunc {
 	}))
 
 	root.HandleFunc("/oauth/token", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "OPTIONS" {
-			w.Header().Add("Cache-Control", "public, max-age=3600")
-			w.WriteHeader(204)
-			return
-		}
 		if r.Header.Get("Content-Type") == "application/json" {
 			bytes, err := io.ReadAll(r.Body)
 			if err != nil {
