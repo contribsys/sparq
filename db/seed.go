@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/contribsys/sparq/util"
+	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -64,22 +65,21 @@ func createAdmin() error {
 		fmt.Println("Creating admin user")
 		_, err := db.Exec(newUserInsert, 1, "116672815607840768", "admin", "admin@"+InstanceHostname, "Sparq Admin", -1)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "create admin")
 		}
 		hash, err := bcrypt.GenerateFromPassword([]byte("sparq123"), 12)
 		if err != nil {
 			return err
 		}
-		util.Infof("Admin password hash: %s", hash)
 		pub, priv := util.GenerateKeys()
 		_, err = db.Exec(newSecurityInsert, 1, hash, pub, priv)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "new account security")
 		}
 		_, err = db.Exec("insert into actors (Id,AccountId) values (?, ?)",
 			"https://"+InstanceHostname+"/@admin", 1)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "new actor")
 		}
 	}
 	return nil

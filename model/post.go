@@ -6,21 +6,21 @@ import (
 	"github.com/contribsys/sparq/db"
 )
 
-type Visibility int
+type PostVisibility int
 
 var (
-	Public        Visibility = 0
-	MentionedOnly Visibility = 1
+	ToPublic        PostVisibility = 0
+	ToMentionedOnly PostVisibility = 1
 )
 
-func NewPost(author *Account, inReplyTo *Post, summary string, content string, visibility Visibility) *Post {
+func NewPost(author *Account, inReplyTo *Post, summary string, content string, visibility PostVisibility) *Post {
 	sid := Snowflakes.NextID()
 	p := &Post{
-		AttributedTo: author.URI(),
-		URI:          fmt.Sprintf("https://%s/@%s/statuses/%d", db.InstanceHostname, author.Nick, sid),
-		Summary:      summary,
-		Content:      content,
-		Visibility:   Public,
+		AttributedTo:   author.URI(),
+		URI:            fmt.Sprintf("https://%s/@%s/statuses/%d", db.InstanceHostname, author.Nick, sid),
+		Summary:        summary,
+		Content:        content,
+		PostVisibility: ToPublic,
 	}
 	if inReplyTo != nil {
 		p.InReplyTo = inReplyTo.URI

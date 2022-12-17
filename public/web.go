@@ -189,9 +189,9 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 	url := "https://" + db.InstanceHostname + "/users/" + nick
 	me := activitystreams.NewPerson(url)
 	me.URL = url
-	me.Name = userdata["FullName"].(string)
-	me.PreferredUsername = userdata["Nick"].(string)
-	me.AddPubKey(string(userdata["PublicKey"].([]uint8)))
+	me.Name = userdata["fullname"].(string)
+	me.PreferredUsername = userdata["nick"].(string)
+	me.AddPubKey(string(userdata["publickey"].([]uint8)))
 
 	data, err := json.Marshal(me)
 	if err != nil {

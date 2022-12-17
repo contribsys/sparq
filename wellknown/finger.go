@@ -19,7 +19,7 @@ var (
 )
 
 type result struct {
-	Nick string `db:"Nick"`
+	Nick string
 	Acct string
 }
 
@@ -30,7 +30,7 @@ func (r *result) URI() string {
 func fingerLookup(ctx context.Context, db *sqlx.DB, username, host string) (*result, error) {
 	// user := map[string]any{}
 	var r result
-	err := db.Get(&r, `select Nick from accounts where lower(Nick) = ?`,
+	err := db.Get(&r, `select nick from accounts where lower(nick) = ?`,
 		strings.ToLower(username))
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound

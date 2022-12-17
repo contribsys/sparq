@@ -56,9 +56,10 @@ func verifyCredentialsHandler(s sparq.Server) http.HandlerFunc {
 
 		// lookupUserAccount
 		var acct model.Account
-		err := s.DB().QueryRowxContext(r.Context(), "select * from accounts where id = ?", uid).StructScan(&acct)
+		err := s.DB().Get(&acct, "select * from accounts where id = ?", uid)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 
 		// render JSON template
@@ -66,6 +67,7 @@ func verifyCredentialsHandler(s sparq.Server) http.HandlerFunc {
 		err = accountCredentialTemplate.Execute(w, &acct)
 		if err != nil {
 			util.Error("Unable to execute template", err)
+			return
 		}
 	}
 }
