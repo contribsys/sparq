@@ -43,19 +43,40 @@ func appsHandler(svr sparq.Server) http.HandlerFunc {
 			return
 		}
 
-		// {"client_name":"Pinafore",
-		// "redirect_uris":"https://pinafore.social/settings/instances/add",
-		// "scopes":"read write follow push",
-		// "website":"https://pinafore.social"}
-		hash, err := jsonHashBody(r)
+		err := r.ParseForm()
 		if err != nil {
-			http.Error(w, err.Error(), 400)
+			fmt.Println("Unexpected error " + err.Error())
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		hash := map[string]string{}
+
+		if strings.Contains(r.Header.Get("Content-Type"), "application/json") {
+			// {"client_name":"Pinafore",
+			// "redirect_uris":"https://pinafore.social/settings/instances/add",
+			// "scopes":"read write follow push",
+			// "website":"https://pinafore.social"}
+			hash, err = jsonHashBody(r)
+			if err != nil {
+				fmt.Println("Unexpected error " + err.Error())
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+		} else {
+			for k, v := range r.Form {
+				hash[k] = v[0]
+			}
+		}
+
+		if len(hash) < 4 || len(hash) > 8 {
+			http.Error(w, "Invalid input", http.StatusBadRequest)
 			return
 		}
 
 		for _, v := range hash {
 			if len(v) > 500 {
-				http.Error(w, "Input too long", http.StatusBadRequest)
+				http.Error(w, "Invalid input", http.StatusBadRequest)
 				return
 			}
 		}
@@ -65,13 +86,18 @@ func appsHandler(svr sparq.Server) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		b, err := json.Marshal(results)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		w.Header().Add("Content-Type", "application/json")
-		b, _ := json.Marshal(results)
+		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(b)
 	}
 }
 
-func createOauthClient(svr sparq.Server, hash map[string]string) (map[string]string, error) {
+func createOauthClient(svr sparq.Server, hash map[string]string) (map[string]interface{}, error) {
 	clientId := uuid.NewString()
 	secret := make([]byte, 16)
 	_, err := io.ReadFull(rand.Reader, secret)
@@ -90,13 +116,13 @@ func createOauthClient(svr sparq.Server, hash map[string]string) (map[string]str
 		return nil, errors.Wrap(err, "oauth_client create")
 	}
 
-	return map[string]string{
+	return map[string]interface{}{
+		"name":          hash["client_name"],
+		"website":       hash["website"],
+		"redirect_uri":  hash["redirect_uris"],
 		"client_id":     clientId,
 		"client_secret": clientSecret,
-		"redirect_uri":  hash["redirect_uris"],
-		"name":          hash["client_name"],
-		"website":       "http://localhost:9494",
-		"vapid_key":     "",
+		"vapid_key":     nil,
 	}, nil
 }
 
@@ -152,7 +178,10 @@ func appsVerifyHandler(svr sparq.Server) http.HandlerFunc {
 
 // /api/v1/instance
 func instanceHandler(svr sparq.Server) http.HandlerFunc {
-	instanceTemplate = template.Must(template.New("instance").Parse(instanceText))
+	x := template.New("instance")
+	x.Funcs(map[string]any{"rfc3339": util.Thens})
+
+	instanceTemplate = template.Must(x.Parse(instanceText))
 	var admin model.Account
 	err := svr.DB().Get(&admin, "select * from accounts where id = 1")
 	if err != nil {
@@ -283,7 +312,7 @@ var (
 			"bot": false,
 			"discoverable": true,
 			"group": false,
-			"created_at": "{{.Admin.CreatedAt}}",
+			"created_at": "{{.Admin.Created}}",
 			"note": "{{.Admin.AccountProfile.Note}}",
 			"url": "https://{{.Domain}}/@admin",
 			"avatar": "https://{{.Domain}}{{.Admin.AccountProfile.Avatar}}",
@@ -299,7 +328,7 @@ var (
 			"fields": [
 				{{ range $idx, $field := .Fields -}}
 					{{if $idx}},{{end}}
-					{ "name": "{{index $field 1}}", "value": "{{index $field 2}}", "verified_at": {{- with index $field 3}} "{{.}}" {{- else -}}null{{ end -}} }
+					{ "name": "{{index $field 1}}", "value": "{{index $field 2}}", "verified_at": {{- with index $field 3}} "{{rfc3339 .}}" {{- else -}}null{{ end -}} }
 				{{- end }}
 			]
 		},

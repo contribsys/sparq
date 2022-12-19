@@ -130,10 +130,10 @@ func loginHandler(s sparq.Server) http.HandlerFunc {
 			var uid int64
 			var hash []byte
 			err := s.DB().QueryRowxContext(r.Context(), `
-			  select us.UserId, us.PasswordHash
-				from accounts	u join account_securities us
-				on u.Id = us.AccountId
-				where u.Nick = ?`, username).Scan(&uid, &hash)
+			  select a.id, us.passwordhash
+				from accounts	a join account_securities us
+				on a.id = us.accountid
+				where a.nick = ?`, username).Scan(&uid, &hash)
 			if err != nil {
 				if err == sql.ErrNoRows {
 					util.Debugf("Username not found: %s", username)

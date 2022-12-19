@@ -3,7 +3,6 @@ package clientapi
 import (
 	"encoding/json"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/contribsys/sparq/db"
@@ -56,43 +55,4 @@ func TestAccounts(t *testing.T) {
 		assert.Contains(t, payload, "id")
 	})
 
-	t.Run("apps", func(t *testing.T) {
-		req := httptest.NewRequest("OPTIONS", "http://localhost.dev:9494/api/v1/apps", nil)
-		w := httptest.NewRecorder()
-		root.ServeHTTP(w, req)
-		assert.Equal(t, w.Code, 204)
-		assert.Contains(t, w.Body.String(), "")
-
-		// GET not allowed
-		req = httptest.NewRequest("GET", "http://localhost.dev:9494/api/v1/apps", nil)
-		w = httptest.NewRecorder()
-		root.ServeHTTP(w, req)
-		assert.Equal(t, 400, w.Code)
-		assert.Contains(t, w.Body.String(), "Bad method")
-
-		// no body
-		req = httptest.NewRequest("POST", "http://localhost.dev:9494/api/v1/apps", nil)
-		w = httptest.NewRecorder()
-		root.ServeHTTP(w, req)
-		assert.Equal(t, 400, w.Code)
-		assert.Contains(t, w.Body.String(), "")
-
-		j := `{"client_name":"Pinaforte",
-		 "redirect_uris":"https://pinafore.social/settings/instances/add",
-		 "scopes":"read write follow push",
-		 "website":"https://pinafore.social"}`
-		br := strings.NewReader(j)
-		req = httptest.NewRequest("POST", "http://localhost.dev:9494/api/v1/apps", br)
-		req.Header.Add("Content-Type", "application/json")
-		w = httptest.NewRecorder()
-		root.ServeHTTP(w, req)
-		assert.Equal(t, 200, w.Code)
-		assert.Contains(t, w.Body.String(), "client_secret")
-		assert.Contains(t, w.Body.String(), "Pinaforte")
-
-		var count int
-		err := db.Database().QueryRow("select count(*) from oauth_clients where Name = 'Pinaforte'").Scan(&count)
-		assert.NoError(t, err)
-		assert.Equal(t, 1, count)
-	})
 }

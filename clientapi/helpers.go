@@ -37,7 +37,7 @@ func registerToken(t *testing.T, s sparq.Server) (string, error) {
 		"website":       "https://pinafore.social"}
 	result, err := createOauthClient(s, clientHash)
 	assert.NoError(t, err)
-	cid := result["client_id"]
+	cid := result["client_id"].(string)
 
 	ag := oauth2.NewAccessGenerate()
 	createdAt := time.Now()

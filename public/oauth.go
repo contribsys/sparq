@@ -124,10 +124,12 @@ func BearerAuth(store oauth2.TokenStore) func(http.Handler) http.Handler {
 				token = auth[len(prefix):]
 				ti, err := store.GetByAccess(r.Context(), token)
 				if err != nil {
+					fmt.Println("Error processing bearer request: " + err.Error())
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
 				if ti == nil || ti.GetAccessCreateAt().Add(ti.GetAccessExpiresIn()).Before(time.Now()) {
+					fmt.Println("Access token missing or expired")
 					// access token has expired
 					w.Header().Add("Content-Type", "application/json")
 					w.WriteHeader(http.StatusUnauthorized)
@@ -142,12 +144,13 @@ func BearerAuth(store oauth2.TokenStore) func(http.Handler) http.Handler {
 					fmt.Println("Bearer: ", val, ti.GetUserID())
 				}
 			}
+			fmt.Printf("BearerAuth %s\n", r.URL.Path)
 			pass.ServeHTTP(w, r)
 		})
 	}
 }
 
-func IntegrateOauth(s sparq.Server, root *mux.Router) mux.MiddlewareFunc {
+func IntegrateOauth(s sparq.Server, root *mux.Router) {
 	manager := oauth2.NewDefaultManager()
 	store := &SqliteOauthStore{db.Database()}
 	manager.MapTokenStorage(store)
@@ -267,5 +270,4 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) mux.MiddlewareFunc {
 		uid := session.Values["uid"]
 		return fmt.Sprint(uid), nil
 	})
-	return BearerAuth(store)
 }

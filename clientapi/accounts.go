@@ -52,6 +52,10 @@ func AddPublicEndpoints(s sparq.Server, mux *mux.Router) {
 var sessionStore = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
 
 func verifyCredentialsHandler(s sparq.Server) http.HandlerFunc {
+	x := template.New("accountCredential")
+	x.Funcs(map[string]any{"rfc3339": util.Thens})
+	accountCredentialTemplate := template.Must(x.Parse(accountCredentialText))
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		session, _ := sessionStore.Get(r, "sparq-session")
 		uid := session.Values["uid"]
@@ -79,7 +83,7 @@ func verifyCredentialsHandler(s sparq.Server) http.HandlerFunc {
 }
 
 var (
-	accountCredentialTemplate = template.Must(template.New("accountCredential").Parse(`
+	accountCredentialText = `
 {
   "id": "{{.Id}}",
   "username": "{{.Nick}}",
@@ -109,7 +113,7 @@ var (
   "emojis": [],
   "fields": []
 }
-`))
+`
 )
 
 func getAccountStatuses(w http.ResponseWriter, r *http.Request) {

@@ -26,8 +26,7 @@ func rootRouter(s sparq.Server) *mux.Router {
 
 func BuildWeb(s *Service) *http.Server {
 	root := rootRouter(s)
-	bearer := public.IntegrateOauth(s, root)
-	root.Use(bearer)
+	public.IntegrateOauth(s, root)
 	apiv1 := root.PathPrefix("/api/v1").Subrouter()
 	clientapi.AddPublicEndpoints(s, apiv1)
 	public.AddPublicEndpoints(s, root)
