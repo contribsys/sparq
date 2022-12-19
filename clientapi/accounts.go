@@ -38,6 +38,7 @@ func AddPublicEndpoints(s sparq.Server, mux *mux.Router) {
 	mux.HandleFunc("/instance", instanceHandler(s))
 	mux.HandleFunc("/timelines/{type}", timelineHandler(s))
 	mux.HandleFunc("/statuses", statusHandler(s))
+	mux.HandleFunc("/apps", appsHandler(s))
 	mux.HandleFunc("/accounts/verify_credentials", verifyCredentialsHandler(s))
 	mux.HandleFunc("/accounts/{sfid:[0-9]+}", getAccount)
 	mux.HandleFunc("/accounts/{sfid:[0-9]+}/statuses", getAccountStatuses)
@@ -56,7 +57,11 @@ func verifyCredentialsHandler(s sparq.Server) http.HandlerFunc {
 
 		// lookupUserAccount
 		var acct model.Account
-		err := s.DB().Get(&acct, "select * from accounts where id = ?", uid)
+		err := s.DB().Get(&acct, `
+		  select * from accounts a
+		  join account_profiles ap 
+			on a.id = ap.accountid 
+			where a.id = ?`, uid)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -84,10 +89,10 @@ var (
   "created_at": "{{.Created}}",
   "note": "",
   "url": "{{.URI}}",
-  "avatar": "https://files.mastodon.social/accounts/avatars/000/014/715/original/34aa222f4ae2e0a9.png",
-  "avatar_static": "https://files.mastodon.social/accounts/avatars/000/014/715/original/34aa222f4ae2e0a9.png",
-  "header": "https://files.mastodon.social/accounts/headers/000/014/715/original/5c6fc24edb3bb873.jpg",
-  "header_static": "https://files.mastodon.social/accounts/headers/000/014/715/original/5c6fc24edb3bb873.jpg",
+  "avatar": "{{.Avatar}}",
+  "avatar_static": "{{.Avatar}}",
+  "header": "{{.Header}}",
+  "header_static": "{{.Header}}",
   "followers_count": 0,
   "following_count": 0,
   "statuses_count": 0,

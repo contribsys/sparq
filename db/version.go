@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	db     *sqlx.DB
+	dbx    *sqlx.DB
 	dbVer  int64
 	migVer int64
 
@@ -20,7 +20,7 @@ var (
 )
 
 func Database() *sqlx.DB {
-	return db
+	return dbx
 }
 
 type DatabaseOptions struct {
@@ -50,7 +50,7 @@ func InitDB(filename string, remove bool) (func(), error) {
 		return nil, err
 	}
 
-	if err := goose.Up(db.DB, "migrate"); err != nil {
+	if err := goose.Up(dbx.DB, "migrate"); err != nil {
 		return nil, errors.Wrap(err, "Unable to migrate database")
 	}
 	if err := Seed(); err != nil {
@@ -58,8 +58,8 @@ func InitDB(filename string, remove bool) (func(), error) {
 	}
 
 	return func() {
-		db.Close()
-		db = nil
+		dbx.Close()
+		dbx = nil
 		if remove {
 			_ = os.Remove(fname)
 		}
@@ -68,7 +68,7 @@ func InitDB(filename string, remove bool) (func(), error) {
 
 func OpenDB(opts DatabaseOptions) error {
 	var err error
-	db, err = sqlx.Open("sqlite", opts.Filename)
+	dbx, err = sqlx.Open("sqlite", opts.Filename)
 	if err != nil {
 		return err
 	}
@@ -91,17 +91,17 @@ func OpenDB(opts DatabaseOptions) error {
 }
 
 func CloseDatabase() error {
-	return db.Close()
+	return dbx.Close()
 }
 
 func SqliteVersion() string {
 	var ver string
-	_ = db.QueryRow("select sqlite_version()").Scan(&ver)
+	_ = dbx.QueryRow("select sqlite_version()").Scan(&ver)
 	return ver
 }
 
 func LoadHostname() error {
-	return db.QueryRow("select hostname from instance;").Scan(&InstanceHostname)
+	return dbx.QueryRow("select hostname from instance;").Scan(&InstanceHostname)
 }
 
 func versionCheck() error {

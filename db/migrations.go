@@ -20,7 +20,7 @@ func init() {
 
 // the latest migration version in the sqlite database on disk
 func getDatabaseVersion() (int64, error) {
-	return goose.GetDBVersion(db.DB)
+	return goose.GetDBVersion(dbx.DB)
 }
 
 // the latest migration version packed into this binary
@@ -60,7 +60,7 @@ func MigrateExec(args []string) error {
 	}
 
 	if cmd == "redo" {
-		if err := goose.Redo(db.DB, "migrate"); err != nil {
+		if err := goose.Redo(dbx.DB, "migrate"); err != nil {
 			return errors.Wrap(err, "Unable to migrate database")
 		}
 		if err := Seed(); err != nil {
@@ -71,7 +71,7 @@ func MigrateExec(args []string) error {
 			log.Printf("Your sparq database version is current: %d\n", dbVer)
 			return nil
 		}
-		if err := goose.Up(db.DB, "migrate"); err != nil {
+		if err := goose.Up(dbx.DB, "migrate"); err != nil {
 			return errors.Wrap(err, "Unable to migrate database")
 		}
 	}

@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	//go:embed static/*.css static/*.js static/*.png
+	//go:embed static/*.css static/*.js static/*.png static/*.jpg
 	staticFiles embed.FS
 
 	//go:embed static/locales/*.yml

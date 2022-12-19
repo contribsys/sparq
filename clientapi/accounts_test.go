@@ -2,7 +2,6 @@ package clientapi
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -15,8 +14,6 @@ func jsonPayload(t *testing.T, w *httptest.ResponseRecorder) map[string]interfac
 	if w.Header().Get("Content-Type") != "application/json" {
 		return map[string]interface{}{"content": w.Body.String()}
 	}
-
-	fmt.Println(w.Body.String())
 
 	var payload map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &payload)
@@ -62,21 +59,21 @@ func TestAccounts(t *testing.T) {
 	t.Run("apps", func(t *testing.T) {
 		req := httptest.NewRequest("OPTIONS", "http://localhost.dev:9494/api/v1/apps", nil)
 		w := httptest.NewRecorder()
-		appsHandler(ts)(w, req)
+		root.ServeHTTP(w, req)
 		assert.Equal(t, w.Code, 204)
 		assert.Contains(t, w.Body.String(), "")
 
 		// GET not allowed
 		req = httptest.NewRequest("GET", "http://localhost.dev:9494/api/v1/apps", nil)
 		w = httptest.NewRecorder()
-		appsHandler(ts)(w, req)
+		root.ServeHTTP(w, req)
 		assert.Equal(t, 400, w.Code)
 		assert.Contains(t, w.Body.String(), "Bad method")
 
 		// no body
 		req = httptest.NewRequest("POST", "http://localhost.dev:9494/api/v1/apps", nil)
 		w = httptest.NewRecorder()
-		appsHandler(ts)(w, req)
+		root.ServeHTTP(w, req)
 		assert.Equal(t, 400, w.Code)
 		assert.Contains(t, w.Body.String(), "")
 
@@ -88,8 +85,7 @@ func TestAccounts(t *testing.T) {
 		req = httptest.NewRequest("POST", "http://localhost.dev:9494/api/v1/apps", br)
 		req.Header.Add("Content-Type", "application/json")
 		w = httptest.NewRecorder()
-		h := appsHandler(ts)
-		h(w, req)
+		root.ServeHTTP(w, req)
 		assert.Equal(t, 200, w.Code)
 		assert.Contains(t, w.Body.String(), "client_secret")
 		assert.Contains(t, w.Body.String(), "Pinafore")

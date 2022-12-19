@@ -28,7 +28,6 @@ func (r *result) URI() string {
 }
 
 func fingerLookup(ctx context.Context, db *sqlx.DB, username, host string) (*result, error) {
-	// user := map[string]any{}
 	var r result
 	err := db.Get(&r, `select nick from accounts where lower(nick) = ?`,
 		strings.ToLower(username))
@@ -98,9 +97,9 @@ func webfingerHandler(dbx *sqlx.DB) http.HandlerFunc {
 	}
 }
 
-func AddPublicEndpoints(mux *mux.Router) {
-	mux.HandleFunc("/.well-known/webfinger", webfingerHandler(db.Database()))
-	mux.HandleFunc("/.well-known/nodeinfo", func(resp http.ResponseWriter, req *http.Request) {
+func AddPublicEndpoints(root *mux.Router) {
+	root.HandleFunc("/.well-known/webfinger", webfingerHandler(db.Database()))
+	root.HandleFunc("/.well-known/nodeinfo", func(resp http.ResponseWriter, req *http.Request) {
 		resp.Header().Add("Content-Type", "application/json")
 		resp.Header().Add("Access-Control-Allow-Origin", "*")
 		resp.Header().Add("Access-Control-Allow-Headers", "*")
@@ -108,7 +107,7 @@ func AddPublicEndpoints(mux *mux.Router) {
 		resp.WriteHeader(200)
 		_, _ = resp.Write([]byte(`{"links":[{"rel":"http://nodeinfo.diaspora.software/ns/schema/2.1","href":"https://` + db.InstanceHostname + `/nodeinfo/2.1"}]}`))
 	})
-	mux.HandleFunc("/nodeinfo/2.1", func(resp http.ResponseWriter, req *http.Request) {
+	root.HandleFunc("/nodeinfo/2.1", func(resp http.ResponseWriter, req *http.Request) {
 		resp.Header().Add("Content-Type", "application/json")
 		resp.Header().Add("Cache-Control", "public, max-age=600")
 

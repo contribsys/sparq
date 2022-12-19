@@ -47,12 +47,18 @@ create index idx_oauth_tokens_code on oauth_tokens(code);
 create index idx_oauth_tokens_access on oauth_tokens(access);
 create index idx_oauth_tokens_refresh on oauth_tokens(refresh);
 
+create table if not exists `account_profiles` (
+	accountid integer not null,
+	note      string not null default "",
+	avatar    string not null default "/static/default_avatar.png",
+	header    string not null default "/static/default_header.jpg",
+  foreign key (accountid) references accounts(id) on delete cascade 
+);
 create table if not exists `account_fields` (
-  id           integer primary key,
   accountid    integer not null,
   name         string not null,
   value        string not null,
-  verified_at  timestamp,
+  verifiedat  timestamp,
   foreign key (accountid) references accounts(id) on delete cascade 
 );
 create table if not exists `account_securities` (

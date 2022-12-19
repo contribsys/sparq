@@ -16,13 +16,15 @@ func TestInstance(t *testing.T) {
 	assert.NoError(t, err)
 	defer stopper()
 	ts := &testSvr{}
+	root := rootRouter(ts)
+	AddPublicEndpoints(ts, root.PathPrefix("/api/v1").Subrouter())
 
 	t.Run("instance", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "http://localhost.dev:9494/api/v1/instance", nil)
 		w := httptest.NewRecorder()
-		instanceHandler(ts)(w, req)
+		root.ServeHTTP(w, req)
 		assert.Equal(t, w.Code, 200)
-		assert.Contains(t, w.Body.String(), `"domain": "localhost.dev",`)
+		assert.Contains(t, w.Body.String(), `"uri": "localhost.dev",`)
 
 		var testy map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &testy)
@@ -32,21 +34,21 @@ func TestInstance(t *testing.T) {
 	t.Run("apps", func(t *testing.T) {
 		req := httptest.NewRequest("OPTIONS", "http://localhost.dev:9494/api/v1/apps", nil)
 		w := httptest.NewRecorder()
-		appsHandler(ts)(w, req)
+		root.ServeHTTP(w, req)
 		assert.Equal(t, w.Code, 204)
 		assert.Contains(t, w.Body.String(), "")
 
 		// GET not allowed
 		req = httptest.NewRequest("GET", "http://localhost.dev:9494/api/v1/apps", nil)
 		w = httptest.NewRecorder()
-		appsHandler(ts)(w, req)
+		root.ServeHTTP(w, req)
 		assert.Equal(t, 400, w.Code)
 		assert.Contains(t, w.Body.String(), "Bad method")
 
 		// no body
 		req = httptest.NewRequest("POST", "http://localhost.dev:9494/api/v1/apps", nil)
 		w = httptest.NewRecorder()
-		appsHandler(ts)(w, req)
+		root.ServeHTTP(w, req)
 		assert.Equal(t, 400, w.Code)
 		assert.Contains(t, w.Body.String(), "")
 
@@ -58,8 +60,7 @@ func TestInstance(t *testing.T) {
 		req = httptest.NewRequest("POST", "http://localhost.dev:9494/api/v1/apps", br)
 		req.Header.Add("Content-Type", "application/json")
 		w = httptest.NewRecorder()
-		h := appsHandler(ts)
-		h(w, req)
+		root.ServeHTTP(w, req)
 		assert.Equal(t, 200, w.Code)
 		assert.Contains(t, w.Body.String(), "client_secret")
 		assert.Contains(t, w.Body.String(), "Pinafore")
