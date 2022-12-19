@@ -2,11 +2,15 @@ package clientapi
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"text/template"
 
 	"github.com/contribsys/sparq"
@@ -32,7 +36,6 @@ func jsonHashBody(r *http.Request) (map[string]string, error) {
 	return result, nil
 }
 
-// /api/v1/apps
 func appsHandler(svr sparq.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
@@ -57,34 +60,86 @@ func appsHandler(svr sparq.Server) http.HandlerFunc {
 			}
 		}
 
-		clientId := uuid.NewString()
-		secret := make([]byte, 16)
-		_, err = io.ReadFull(rand.Reader, secret)
+		results, err := createOauthClient(svr, hash)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		clientSecret := hex.EncodeToString(secret)
+		w.Header().Add("Content-Type", "application/json")
+		b, _ := json.Marshal(results)
+		_, _ = w.Write(b)
+	}
+}
+
+func createOauthClient(svr sparq.Server, hash map[string]string) (map[string]string, error) {
+	clientId := uuid.NewString()
+	secret := make([]byte, 16)
+	_, err := io.ReadFull(rand.Reader, secret)
+	if err != nil {
+		return nil, errors.Wrap(err, "oauth_client rand")
+	}
+	clientSecret := hex.EncodeToString(secret)
+
+	// save new OAuth2 application record with client_id and client_secret
+	_, err = svr.DB().ExecContext(context.Background(), `insert into oauth_clients (
+	Name, ClientId, Secret, RedirectUris, Scopes, Website) values (
+		?, ?, ?, ?, ?, ?
+	)`, hash["client_name"], clientId, clientSecret,
+		hash["redirect_uris"], hash["scopes"], hash["website"])
+	if err != nil {
+		return nil, errors.Wrap(err, "oauth_client create")
+	}
+
+	return map[string]string{
+		"client_id":     clientId,
+		"client_secret": clientSecret,
+		"redirect_uri":  hash["redirect_uris"],
+		"name":          hash["client_name"],
+		"website":       "http://localhost:9494",
+		"vapid_key":     "",
+	}, nil
+}
+
+// /api/v1/apps/verify_credentials
+func appsVerifyHandler(svr sparq.Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			http.Error(w, "Bad method", http.StatusBadRequest)
+			return
+		}
+
+		line := r.Header.Get("Authorization")
+		idx := strings.Index(line, "Bearer ")
+		if idx == -1 {
+			http.Error(w, `{ "error": "The access token is invalid" }`, http.StatusUnauthorized)
+			return
+		}
+
+		token := line[idx+7:]
 
 		// save new OAuth2 application record with client_id and client_secret
-		_, err = svr.DB().ExecContext(r.Context(), `insert into oauth_clients (
-			Name, ClientId, Secret, RedirectUris, Scopes, Website) values (
-				?, ?, ?, ?, ?, ?
-			)`, hash["client_name"], clientId, clientSecret,
-			hash["redirect_uris"], hash["scopes"], hash["website"])
+		var name, website string
+		err := svr.DB().QueryRowxContext(r.Context(), `
+			select c.name, c.website
+			from oauth_clients c
+			join oauth_tokens t
+			on c.clientid = t.clientid
+			where t.access = ?`, token).Scan(&name, &website)
 		if err != nil {
-			util.Error("oauth_clients reg", err)
+			if err == sql.ErrNoRows {
+				fmt.Printf("Token %s not found\n", token)
+				http.Error(w, `{ "error": "The access token is invalid" }`, http.StatusUnauthorized)
+				return
+			}
+			util.Error("oauth_clients verify", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		b, err := json.Marshal(map[string]interface{}{
-			"client_id":     clientId,
-			"client_secret": clientSecret,
-			"redirect_uri":  hash["redirect_uris"],
-			"name":          hash["client_name"],
-			"website":       "http://localhost:9494",
-			"vapid_key":     nil,
+			"name":      name,
+			"website":   website,
+			"vapid_key": nil,
 		})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

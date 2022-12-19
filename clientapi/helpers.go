@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/contribsys/sparq"
+	"github.com/contribsys/sparq/db"
 	"github.com/contribsys/sparq/model"
 	"github.com/contribsys/sparq/oauth2"
 	"github.com/contribsys/sparq/public"
@@ -29,12 +30,21 @@ func rootRouter(s sparq.Server) *mux.Router {
 
 // returns the access token or error
 func registerToken(t *testing.T, s sparq.Server) (string, error) {
+	clientHash := map[string]string{
+		"client_name":   "Pinafore",
+		"redirect_uris": "https://pinafore.social/settings/instances/add",
+		"scopes":        "read write follow push",
+		"website":       "https://pinafore.social"}
+	result, err := createOauthClient(s, clientHash)
+	assert.NoError(t, err)
+	cid := result["client_id"]
+
 	ag := oauth2.NewAccessGenerate()
 	createdAt := time.Now()
-	token, _, err := ag.Token(context.Background(), "1234-5678-90", "1", createdAt, false)
+	token, _, err := ag.Token(context.Background(), cid, "1", createdAt, false)
 	assert.NoError(t, err)
 	ti := &model.OauthToken{
-		ClientId:        "1234-5678-90",
+		ClientId:        cid,
 		UserId:          1,
 		RedirectUri:     "https://example.com/oauth-client/add",
 		Scope:           "read write follow push",
@@ -50,6 +60,20 @@ func registerToken(t *testing.T, s sparq.Server) (string, error) {
 		return "", err
 	}
 	return token, nil
+}
+
+func oauthClientCount(t *testing.T) int {
+	var count int
+	err := db.Database().QueryRow("select count(*) from oauth_clients").Scan(&count)
+	assert.NoError(t, err)
+	return count
+}
+
+func oauthTokenCount(t *testing.T) int {
+	var count int
+	err := db.Database().QueryRow("select count(*) from oauth_tokens").Scan(&count)
+	assert.NoError(t, err)
+	return count
 }
 
 func Cors(pass http.Handler) http.Handler {

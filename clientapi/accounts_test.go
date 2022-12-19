@@ -77,7 +77,7 @@ func TestAccounts(t *testing.T) {
 		assert.Equal(t, 400, w.Code)
 		assert.Contains(t, w.Body.String(), "")
 
-		j := `{"client_name":"Pinafore",
+		j := `{"client_name":"Pinaforte",
 		 "redirect_uris":"https://pinafore.social/settings/instances/add",
 		 "scopes":"read write follow push",
 		 "website":"https://pinafore.social"}`
@@ -88,10 +88,10 @@ func TestAccounts(t *testing.T) {
 		root.ServeHTTP(w, req)
 		assert.Equal(t, 200, w.Code)
 		assert.Contains(t, w.Body.String(), "client_secret")
-		assert.Contains(t, w.Body.String(), "Pinafore")
+		assert.Contains(t, w.Body.String(), "Pinaforte")
 
 		var count int
-		err := db.Database().QueryRow("select count(*) from oauth_clients where Name = 'Pinafore'").Scan(&count)
+		err := db.Database().QueryRow("select count(*) from oauth_clients where Name = 'Pinaforte'").Scan(&count)
 		assert.NoError(t, err)
 		assert.Equal(t, 1, count)
 	})
