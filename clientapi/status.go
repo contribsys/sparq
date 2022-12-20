@@ -11,7 +11,7 @@ func statusHandler(svr sparq.Server) http.HandlerFunc {
 		if r.Method == "POST" {
 			err := r.ParseForm()
 			if err != nil {
-				http.Error(w, err.Error(), 400)
+				httpError(w, err, http.StatusBadRequest)
 				return
 			}
 		}

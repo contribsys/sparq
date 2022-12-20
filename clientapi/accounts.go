@@ -68,7 +68,7 @@ func verifyCredentialsHandler(s sparq.Server) http.HandlerFunc {
 			on a.id = ap.accountid 
 			where a.id = ?`, uid)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
 
@@ -77,6 +77,7 @@ func verifyCredentialsHandler(s sparq.Server) http.HandlerFunc {
 		err = accountCredentialTemplate.Execute(w, &acct)
 		if err != nil {
 			util.Error("Unable to execute template", err)
+			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
 	}
@@ -127,11 +128,11 @@ func getAccountStatuses(w http.ResponseWriter, r *http.Request) {
 		limit 50
 		`, sfid)
 	if err == sql.ErrNoRows {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		httpError(w, err, http.StatusNotFound)
 		return
 	}
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -140,7 +141,7 @@ func getAccountStatuses(w http.ResponseWriter, r *http.Request) {
 		rowdata := map[string]interface{}{}
 		err = rows.MapScan(rowdata)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
 		results = append(results, rowdata)
@@ -148,7 +149,7 @@ func getAccountStatuses(w http.ResponseWriter, r *http.Request) {
 
 	data, err := json.Marshal(results)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
 	w.Header().Add("Content-Type", "application/json")
@@ -162,17 +163,17 @@ func getAccount(w http.ResponseWriter, r *http.Request) {
 	userdata := map[string]interface{}{}
 	err := db.Database().QueryRowx("select * from users where sfid = ?", sfid).MapScan(userdata)
 	if err == sql.ErrNoRows {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		httpError(w, err, http.StatusNotFound)
 		return
 	}
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
 
 	data, err := json.Marshal(userdata)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
 	w.Header().Add("Content-Type", "application/json")

@@ -39,14 +39,13 @@ func jsonHashBody(r *http.Request) (map[string]string, error) {
 func appsHandler(svr sparq.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
-			http.Error(w, "Bad method", http.StatusBadRequest)
+			httpError(w, errors.New("Bad method"), http.StatusBadRequest)
 			return
 		}
 
 		err := r.ParseForm()
 		if err != nil {
-			fmt.Println("Unexpected error " + err.Error())
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			httpError(w, err, http.StatusBadRequest)
 			return
 		}
 
@@ -59,8 +58,7 @@ func appsHandler(svr sparq.Server) http.HandlerFunc {
 			// "website":"https://pinafore.social"}
 			hash, err = jsonHashBody(r)
 			if err != nil {
-				fmt.Println("Unexpected error " + err.Error())
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				httpError(w, err, http.StatusBadRequest)
 				return
 			}
 		} else {
@@ -70,25 +68,25 @@ func appsHandler(svr sparq.Server) http.HandlerFunc {
 		}
 
 		if len(hash) < 4 || len(hash) > 8 {
-			http.Error(w, "Invalid input", http.StatusBadRequest)
+			httpError(w, errors.New("Invalid input"), http.StatusBadRequest)
 			return
 		}
 
 		for _, v := range hash {
 			if len(v) > 500 {
-				http.Error(w, "Invalid input", http.StatusBadRequest)
+				httpError(w, errors.New("Invalid input"), http.StatusBadRequest)
 				return
 			}
 		}
 
 		results, err := createOauthClient(svr, hash)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
 		b, err := json.Marshal(results)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
 		w.Header().Add("Content-Type", "application/json")
@@ -129,15 +127,10 @@ func createOauthClient(svr sparq.Server, hash map[string]string) (map[string]int
 // /api/v1/apps/verify_credentials
 func appsVerifyHandler(svr sparq.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
-			http.Error(w, "Bad method", http.StatusBadRequest)
-			return
-		}
-
 		line := r.Header.Get("Authorization")
 		idx := strings.Index(line, "Bearer ")
 		if idx == -1 {
-			http.Error(w, `{ "error": "The access token is invalid" }`, http.StatusUnauthorized)
+			httpError(w, errors.New(`Bearer token not found`), http.StatusUnauthorized)
 			return
 		}
 
@@ -154,11 +147,10 @@ func appsVerifyHandler(svr sparq.Server) http.HandlerFunc {
 		if err != nil {
 			if err == sql.ErrNoRows {
 				fmt.Printf("Token %s not found\n", token)
-				http.Error(w, `{ "error": "The access token is invalid" }`, http.StatusUnauthorized)
+				httpError(w, errors.New(`{ "error": "The access token is invalid" }`), http.StatusUnauthorized)
 				return
 			}
-			util.Error("oauth_clients verify", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
 
@@ -168,7 +160,7 @@ func appsVerifyHandler(svr sparq.Server) http.HandlerFunc {
 			"vapid_key": nil,
 		})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
 		w.Header().Add("Content-Type", "application/json")

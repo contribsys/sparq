@@ -5,15 +5,13 @@ import (
 	"net/http"
 
 	"github.com/contribsys/sparq"
-	"github.com/contribsys/sparq/util"
 )
 
 func emptyHandler(svr sparq.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {
-			msg := fmt.Sprintf("%s not implemented", r.URL.Path)
-			util.Warnf(msg)
-			http.Error(w, msg, 400)
+			err := fmt.Errorf("%s %s not implemented", r.Method, r.URL.Path)
+			httpError(w, err, http.StatusBadRequest)
 			return
 		}
 

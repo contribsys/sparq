@@ -141,7 +141,7 @@ func loginHandler(s sparq.Server) http.HandlerFunc {
 					ego_login(w, r)
 					return
 				}
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				httpError(w, err, http.StatusInternalServerError)
 				return
 			}
 			util.Debugf("Login %s (uid %d)", username, uid)
@@ -182,7 +182,7 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -195,7 +195,7 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 
 	data, err := json.Marshal(me)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
 	w.Header().Add("Content-Type", "application/activity+json")

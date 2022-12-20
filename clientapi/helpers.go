@@ -9,14 +9,27 @@ import (
 	"time"
 
 	"github.com/contribsys/sparq"
-	"github.com/contribsys/sparq/db"
 	"github.com/contribsys/sparq/model"
 	"github.com/contribsys/sparq/oauth2"
 	"github.com/contribsys/sparq/public"
 	"github.com/contribsys/sparq/util"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
+
+type stackTracer interface {
+	StackTrace() errors.StackTrace
+}
+
+func httpError(w http.ResponseWriter, err error, code int) {
+	er := errors.Wrap(err, "Unexpected HTTP error")
+	util.Infof(er.Error())
+	for _, f := range er.(stackTracer).StackTrace() {
+		util.Infof("%+s:%d\n", f, f)
+	}
+	http.Error(w, err.Error(), code)
+}
 
 func rootRouter(s sparq.Server) *mux.Router {
 	root := mux.NewRouter()
@@ -62,20 +75,6 @@ func registerToken(t *testing.T, s sparq.Server) (string, error) {
 	return token, nil
 }
 
-func oauthClientCount(t *testing.T) int {
-	var count int
-	err := db.Database().QueryRow("select count(*) from oauth_clients").Scan(&count)
-	assert.NoError(t, err)
-	return count
-}
-
-func oauthTokenCount(t *testing.T) int {
-	var count int
-	err := db.Database().QueryRow("select count(*) from oauth_tokens").Scan(&count)
-	assert.NoError(t, err)
-	return count
-}
-
 func Cors(pass http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "OPTIONS" {
@@ -95,8 +94,7 @@ func DebugLog(pass http.Handler) http.Handler {
 		if r.Method == "POST" {
 			err := r.ParseForm()
 			if err != nil {
-				util.Warnf("Unable to parse POST: %v", err)
-				http.Error(w, err.Error(), 400)
+				httpError(w, err, http.StatusBadRequest)
 				return
 			}
 		}

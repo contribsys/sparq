@@ -124,8 +124,7 @@ func BearerAuth(store oauth2.TokenStore) func(http.Handler) http.Handler {
 				token = auth[len(prefix):]
 				ti, err := store.GetByAccess(r.Context(), token)
 				if err != nil {
-					fmt.Println("Error processing bearer request: " + err.Error())
-					http.Error(w, err.Error(), http.StatusInternalServerError)
+					httpError(w, err, http.StatusInternalServerError)
 					return
 				}
 				if ti == nil || ti.GetAccessCreateAt().Add(ti.GetAccessExpiresIn()).Before(time.Now()) {
@@ -195,7 +194,7 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) {
 
 		err := r.ParseForm()
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			httpError(w, err, http.StatusBadRequest)
 			return
 		}
 
@@ -203,7 +202,7 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) {
 		util.Infof("Authorizing client %s", clientId)
 		client, err := srv.Manager.GetClient(r.Context(), clientId)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			httpError(w, err, http.StatusBadRequest)
 			return
 		}
 		oc := client.(*model.OauthClient)
@@ -214,19 +213,25 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) {
 			_ = session.Save(r, w)
 			err := store.Delete(r.Context(), r.Form.Get("client_id"))
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				httpError(w, err, http.StatusBadRequest)
+				return
+			}
+			if oc.RedirectUris == "urn:ietf:wg:oauth:2.0:oob" {
+				util.Debugf("Rejected OOB authorization")
+				http.Redirect(w, r, "/", http.StatusFound)
 				return
 			}
 			u, err := url.Parse(oc.RedirectUris)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				util.Debugf("Rejected OOB authorization")
+				httpError(w, err, http.StatusBadRequest)
 				return
 			}
 			q := u.Query()
 			q.Add("error", "access_denied")
 			q.Add("error_description", "Access was denied")
 			u.RawQuery = q.Encode()
-			http.Redirect(w, r, u.String(), 302)
+			http.Redirect(w, r, u.String(), http.StatusFound)
 			return
 		}
 
@@ -235,7 +240,7 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) {
 			_ = session.Save(r, w)
 			err := srv.HandleAuthorizeRequest(w, r)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				httpError(w, err, http.StatusBadRequest)
 				return
 			}
 		}
@@ -246,13 +251,13 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) {
 		if r.Header.Get("Content-Type") == "application/json" {
 			bytes, err := io.ReadAll(r.Body)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				httpError(w, err, http.StatusBadRequest)
 				return
 			}
 			data := map[string]string{}
 			err = json.Unmarshal(bytes, &data)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				httpError(w, err, http.StatusBadRequest)
 				return
 			}
 			r.Form = make(url.Values)
@@ -270,4 +275,13 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) {
 		uid := session.Values["uid"]
 		return fmt.Sprint(uid), nil
 	})
+}
+
+func httpError(w http.ResponseWriter, err error, code int) {
+	er := errors.Wrap(err, "Unexpected HTTP error")
+	util.Infof(er.Error())
+	for _, f := range er.(stackTracer).StackTrace() {
+		util.Infof("%+s:%d\n", f, f)
+	}
+	http.Error(w, err.Error(), code)
 }

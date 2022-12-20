@@ -36,20 +36,20 @@ func TestInstance(t *testing.T) {
 		req := httptest.NewRequest("OPTIONS", "http://localhost.dev:9494/api/v1/apps/verify_credentials", nil)
 		w := httptest.NewRecorder()
 		root.ServeHTTP(w, req)
-		assert.Equal(t, w.Code, 204)
+		assert.Equal(t, 204, w.Code)
 		assert.Equal(t, w.Body.String(), "")
 
 		req = httptest.NewRequest("POST", "http://localhost.dev:9494/api/v1/apps/verify_credentials", nil)
 		w = httptest.NewRecorder()
 		root.ServeHTTP(w, req)
-		assert.Equal(t, w.Code, 400)
-		assert.Contains(t, w.Body.String(), "Bad method")
+		assert.Equal(t, 401, w.Code)
+		assert.Contains(t, w.Body.String(), "not found")
 
 		req = httptest.NewRequest("GET", "http://localhost.dev:9494/api/v1/apps/verify_credentials", nil)
 		w = httptest.NewRecorder()
 		req.Header.Set("Authorization", "Bearer 123456")
 		root.ServeHTTP(w, req)
-		assert.Equal(t, w.Code, 401)
+		assert.Equal(t, 401, w.Code)
 		assert.Contains(t, w.Body.String(), "invalid_token")
 
 		assert.Equal(t, 0, oauthClientCount(t))
@@ -123,4 +123,18 @@ func (ts *testSvr) Hostname() string {
 
 func (ts *testSvr) LogLevel() string {
 	return "debug"
+}
+
+func oauthClientCount(t *testing.T) int {
+	var count int
+	err := db.Database().QueryRow("select count(*) from oauth_clients").Scan(&count)
+	assert.NoError(t, err)
+	return count
+}
+
+func oauthTokenCount(t *testing.T) int {
+	var count int
+	err := db.Database().QueryRow("select count(*) from oauth_tokens").Scan(&count)
+	assert.NoError(t, err)
+	return count
 }
