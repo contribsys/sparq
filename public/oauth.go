@@ -169,21 +169,11 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) {
 	srv.SetAllowGetAccessRequest(true)
 	srv.SetClientInfoHandler(oauth2.ClientFormHandler)
 	srv.SetInternalErrorHandler(func(err error) (re *oauth2.Response) {
-		fmt.Println("internal oauth error:", err.Error())
-		if er, ok := err.(stackTracer); ok {
-			for _, f := range er.StackTrace() {
-				fmt.Printf("%+s:%d\n", f, f)
-			}
-		}
+		util.DumpError(err)
 		return
 	})
 	srv.SetResponseErrorHandler(func(re *oauth2.Response) {
-		fmt.Println("oauth response error:", re.Error.Error())
-		if err, ok := re.Error.(stackTracer); ok {
-			for _, f := range err.StackTrace() {
-				fmt.Printf("%+s:%d\n", f, f)
-			}
-		}
+		util.DumpError(re.Error)
 	})
 	root.HandleFunc("/oauth/authorize", requireLogin(func(w http.ResponseWriter, r *http.Request) {
 		session, _ := sessionStore.Get(r, "sparq-session")
@@ -202,7 +192,11 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) {
 		util.Infof("Authorizing client %s", clientId)
 		client, err := srv.Manager.GetClient(r.Context(), clientId)
 		if err != nil {
-			httpError(w, err, http.StatusBadRequest)
+			if errors.Is(err, sql.ErrNoRows) {
+				httpError(w, errors.New("Client authorization expired, please start over."), http.StatusBadRequest)
+			} else {
+				httpError(w, err, http.StatusBadRequest)
+			}
 			return
 		}
 		oc := client.(*model.OauthClient)
@@ -218,7 +212,7 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) {
 			}
 			if oc.RedirectUris == "urn:ietf:wg:oauth:2.0:oob" {
 				util.Debugf("Rejected OOB authorization")
-				http.Redirect(w, r, "/", http.StatusFound)
+				http.Redirect(w, r, "/home", http.StatusFound)
 				return
 			}
 			u, err := url.Parse(oc.RedirectUris)
@@ -238,10 +232,13 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) {
 		if r.Method == "POST" && r.Form.Get("Approve") == "1" {
 			delete(session.Values, "returnForm")
 			_ = session.Save(r, w)
-			err := srv.HandleAuthorizeRequest(w, r)
+			code, err := srv.HandleAuthorizeRequest(w, r)
 			if err != nil {
 				httpError(w, err, http.StatusBadRequest)
 				return
+			}
+			if code != "" {
+				session.AddFlash(fmt.Sprintf("Your authorization code is %s", code))
 			}
 		}
 		ego_oauth_authorize(w, r, oc)
@@ -279,9 +276,11 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) {
 
 func httpError(w http.ResponseWriter, err error, code int) {
 	er := errors.Wrap(err, "Unexpected HTTP error")
-	util.Infof(er.Error())
+	var build strings.Builder
+	build.WriteString(er.Error())
 	for _, f := range er.(stackTracer).StackTrace() {
-		util.Infof("%+s:%d\n", f, f)
+		build.WriteString(fmt.Sprintf("\n%+v", f))
 	}
+	util.Infof(build.String())
 	http.Error(w, err.Error(), code)
 }

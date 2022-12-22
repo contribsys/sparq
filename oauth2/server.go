@@ -259,20 +259,20 @@ func (s *Server) GetAuthorizeData(rt ResponseType, ti TokenInfo) map[string]inte
 }
 
 // HandleAuthorizeRequest the authorization request handling
-func (s *Server) HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) error {
+func (s *Server) HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) (string, error) {
 	ctx := r.Context()
 
 	req, err := s.ValidationAuthorizeRequest(r)
 	if err != nil {
-		return s.handleError(w, req, err)
+		return "", s.handleError(w, req, err)
 	}
 
 	// user authorization
 	userID, err := s.UserAuthorizationHandler(w, r)
 	if err != nil {
-		return s.handleError(w, req, err)
+		return "", s.handleError(w, req, err)
 	} else if userID == "" {
-		return nil
+		return "", nil
 	}
 	req.UserID = userID
 
@@ -280,7 +280,7 @@ func (s *Server) HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) 
 	if fn := s.AuthorizeScopeHandler; fn != nil {
 		scope, err := fn(w, r)
 		if err != nil {
-			return err
+			return "", err
 		} else if scope != "" {
 			req.Scope = scope
 		}
@@ -290,26 +290,31 @@ func (s *Server) HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) 
 	if fn := s.AccessTokenExpHandler; fn != nil {
 		exp, err := fn(w, r)
 		if err != nil {
-			return err
+			return "", err
 		}
 		req.AccessTokenExp = exp
 	}
 
 	ti, err := s.GetAuthorizeToken(ctx, req)
 	if err != nil {
-		return s.handleError(w, req, err)
+		return "", s.handleError(w, req, err)
 	}
 
 	// If the redirect URI is empty, the default domain provided by the client is used.
 	if req.RedirectURI == "" {
 		client, err := s.Manager.GetClient(ctx, req.ClientID)
 		if err != nil {
-			return err
+			return "", err
 		}
 		req.RedirectURI = client.GetDomain()
 	}
 
-	return s.redirect(w, req, s.GetAuthorizeData(req.ResponseType, ti))
+	data := s.GetAuthorizeData(req.ResponseType, ti)
+	if strings.Contains(req.RedirectURI, ":oob") {
+		return data["code"].(string), nil
+	} else {
+		return "", s.redirect(w, req, data)
+	}
 }
 
 // ValidationTokenRequest the token request validation

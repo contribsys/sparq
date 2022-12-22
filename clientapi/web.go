@@ -18,6 +18,7 @@ func AddPublicEndpoints(s sparq.Server, mux *mux.Router) {
 	mux.HandleFunc("/custom_emojis", emptyHandler(s))
 	mux.HandleFunc("/lists", emptyHandler(s))
 	mux.HandleFunc("/filters", emptyHandler(s))
+	mux.HandleFunc("/notifications", emptyHandler(s))
 	mux.HandleFunc("/instance", instanceHandler(s))
 	mux.HandleFunc("/timelines/{type}", timelineHandler(s))
 	mux.HandleFunc("/statuses", statusHandler(s))
@@ -28,4 +29,5 @@ func AddPublicEndpoints(s sparq.Server, mux *mux.Router) {
 	mux.HandleFunc("/accounts/{sfid:[0-9]+}/statuses", getAccountStatuses)
 	// mux.HandleFunc("/accounts/{sfid:[0-9]+}/followers", getAccountFollowers)
 	// mux.HandleFunc("/accounts/{sfid:[0-9]+}/following", getAccountFollowing)
+
 }

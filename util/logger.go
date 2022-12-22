@@ -3,7 +3,10 @@ package util
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 // colors.
@@ -107,7 +110,8 @@ func Infof(msg string, args ...interface{}) {
 }
 
 // Verbosity level helps track down production issues:
-//  -l debug
+//
+//	-l debug
 func Debug(arg string) {
 	if LogDebug {
 		llog(DebugLevel, arg)
@@ -115,9 +119,24 @@ func Debug(arg string) {
 }
 
 // Verbosity level helps track down production issues:
-//  -l debug
+//
+//	-l debug
 func Debugf(msg string, args ...interface{}) {
 	if LogDebug {
 		llog(DebugLevel, fmt.Sprintf(msg, args...))
 	}
+}
+
+func DumpError(err error) {
+	er := errors.Wrap(err, "Unexpected HTTP error")
+	var build strings.Builder
+	build.WriteString(er.Error())
+	for _, f := range er.(stackTracer).StackTrace() {
+		build.WriteString(fmt.Sprintf("\n%+v", f))
+	}
+	Infof(build.String())
+}
+
+type stackTracer interface {
+	StackTrace() errors.StackTrace
 }
