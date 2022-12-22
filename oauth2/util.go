@@ -21,7 +21,7 @@ func DefaultValidateURI(baseURI string, redirectURI string) error {
 	if err != nil {
 		return err
 	}
-	if strings.Contains(redirectURI, ":oob") {
+	if redirectURI == "urn:ietf:wg:oauth:2.0:oob" {
 		return nil
 	}
 	if !strings.HasSuffix(redirect.Host, base.Host) {

@@ -310,7 +310,7 @@ func (s *Server) HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) 
 	}
 
 	data := s.GetAuthorizeData(req.ResponseType, ti)
-	if strings.Contains(req.RedirectURI, ":oob") {
+	if req.RedirectURI == "urn:ietf:wg:oauth:2.0:oob" {
 		return data["code"].(string), nil
 	} else {
 		return "", s.redirect(w, req, data)
