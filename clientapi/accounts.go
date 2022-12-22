@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
-	"os"
 	"text/template"
 
 	"github.com/contribsys/sparq"
@@ -12,7 +11,6 @@ import (
 	"github.com/contribsys/sparq/model"
 	"github.com/contribsys/sparq/util"
 	"github.com/gorilla/mux"
-	"github.com/gorilla/sessions"
 )
 
 // POST https://mastodon.example/api/v1/accounts
@@ -30,26 +28,6 @@ import (
 // POST https://mastodon.example/api/v1/accounts/:id/unmute
 // GET https://mastodon.example/api/v1/accounts/relationships
 // GET https://mastodon.example/api/v1/accounts/search
-
-func AddPublicEndpoints(s sparq.Server, mux *mux.Router) {
-	mux.HandleFunc("/custom_emojis", emptyHandler(s))
-	mux.HandleFunc("/lists", emptyHandler(s))
-	mux.HandleFunc("/filters", emptyHandler(s))
-	mux.HandleFunc("/instance", instanceHandler(s))
-	mux.HandleFunc("/timelines/{type}", timelineHandler(s))
-	mux.HandleFunc("/statuses", statusHandler(s))
-	mux.HandleFunc("/apps/verify_credentials", appsVerifyHandler(s))
-	mux.HandleFunc("/apps", appsHandler(s))
-	mux.HandleFunc("/accounts/verify_credentials", verifyCredentialsHandler(s))
-	mux.HandleFunc("/accounts/{sfid:[0-9]+}", getAccount)
-	mux.HandleFunc("/accounts/{sfid:[0-9]+}/statuses", getAccountStatuses)
-	// mux.HandleFunc("/accounts/{sfid:[0-9]+}/followers", getAccountFollowers)
-	// mux.HandleFunc("/accounts/{sfid:[0-9]+}/following", getAccountFollowing)
-}
-
-// openssl rand -hex 32
-// ruby -rsecurerandom -e "puts SecureRandom.hex(32)"
-var sessionStore = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
 
 func verifyCredentialsHandler(s sparq.Server) http.HandlerFunc {
 	x := template.New("accountCredential")

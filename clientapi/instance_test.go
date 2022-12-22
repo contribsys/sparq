@@ -1,13 +1,19 @@
 package clientapi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/db"
+	"github.com/contribsys/sparq/model"
+	"github.com/contribsys/sparq/oauth2"
+	"github.com/contribsys/sparq/public"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 )
@@ -137,4 +143,38 @@ func oauthTokenCount(t *testing.T) int {
 	err := db.Database().QueryRow("select count(*) from oauth_tokens").Scan(&count)
 	assert.NoError(t, err)
 	return count
+}
+
+// returns the access token or error
+func registerToken(t *testing.T, s sparq.Server) (string, error) {
+	clientHash := map[string]string{
+		"client_name":   "Pinafore",
+		"redirect_uris": "https://pinafore.social/settings/instances/add",
+		"scopes":        "read write follow push",
+		"website":       "https://pinafore.social"}
+	result, err := createOauthClient(s, clientHash)
+	assert.NoError(t, err)
+	cid := result["client_id"].(string)
+
+	ag := oauth2.NewAccessGenerate()
+	createdAt := time.Now()
+	token, _, err := ag.Token(context.Background(), cid, "1", createdAt, false)
+	assert.NoError(t, err)
+	ti := &model.OauthToken{
+		ClientId:        cid,
+		UserId:          1,
+		RedirectUri:     "https://example.com/oauth-client/add",
+		Scope:           "read write follow push",
+		Access:          token,
+		AccessCreatedAt: createdAt,
+		AccessExpiresIn: 2 * time.Hour,
+		CreatedAt:       createdAt,
+	}
+	store := &public.SqliteOauthStore{DB: s.DB()}
+	err = store.Create(context.Background(), ti)
+	assert.NoError(t, err)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
 }

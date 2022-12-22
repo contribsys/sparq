@@ -1,21 +1,17 @@
 package clientapi
 
 import (
-	"context"
+	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"os"
-	"testing"
-	"time"
+	"strings"
 
 	"github.com/contribsys/sparq"
-	"github.com/contribsys/sparq/model"
-	"github.com/contribsys/sparq/oauth2"
 	"github.com/contribsys/sparq/public"
 	"github.com/contribsys/sparq/util"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
 )
 
 type stackTracer interface {
@@ -24,10 +20,12 @@ type stackTracer interface {
 
 func httpError(w http.ResponseWriter, err error, code int) {
 	er := errors.Wrap(err, "Unexpected HTTP error")
-	util.Infof(er.Error())
+	var build strings.Builder
+	build.WriteString(er.Error())
 	for _, f := range er.(stackTracer).StackTrace() {
-		util.Infof("%+s:%d\n", f, f)
+		build.WriteString(fmt.Sprintf("\n%+v", f))
 	}
+	util.Infof(build.String())
 	http.Error(w, err.Error(), code)
 }
 
@@ -41,47 +39,13 @@ func rootRouter(s sparq.Server) *mux.Router {
 	return root
 }
 
-// returns the access token or error
-func registerToken(t *testing.T, s sparq.Server) (string, error) {
-	clientHash := map[string]string{
-		"client_name":   "Pinafore",
-		"redirect_uris": "https://pinafore.social/settings/instances/add",
-		"scopes":        "read write follow push",
-		"website":       "https://pinafore.social"}
-	result, err := createOauthClient(s, clientHash)
-	assert.NoError(t, err)
-	cid := result["client_id"].(string)
-
-	ag := oauth2.NewAccessGenerate()
-	createdAt := time.Now()
-	token, _, err := ag.Token(context.Background(), cid, "1", createdAt, false)
-	assert.NoError(t, err)
-	ti := &model.OauthToken{
-		ClientId:        cid,
-		UserId:          1,
-		RedirectUri:     "https://example.com/oauth-client/add",
-		Scope:           "read write follow push",
-		Access:          token,
-		AccessCreatedAt: createdAt,
-		AccessExpiresIn: 2 * time.Hour,
-		CreatedAt:       createdAt,
-	}
-	store := &public.SqliteOauthStore{DB: s.DB()}
-	err = store.Create(context.Background(), ti)
-	assert.NoError(t, err)
-	if err != nil {
-		return "", err
-	}
-	return token, nil
-}
-
 func Cors(pass http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Access-Control-Allow-Origin", "*")
+		w.Header().Add("Access-Control-Allow-Methods", "POST, PUT, DELETE, GET, PATCH, OPTIONS")
+		w.Header().Add("Access-Control-Allow-Headers", "*")
+		w.Header().Add("Cache-Control", "public, max-age=3600")
 		if r.Method == "OPTIONS" {
-			w.Header().Add("Access-Control-Allow-Origin", "*")
-			w.Header().Add("Access-Control-Allow-Methods", "POST, PUT, DELETE, GET, PATCH, OPTIONS")
-			w.Header().Add("Access-Control-Allow-Headers", "*")
-			w.Header().Add("Cache-Control", "public, max-age=3600")
 			w.WriteHeader(204)
 			return
 		}

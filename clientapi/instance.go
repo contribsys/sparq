@@ -21,9 +21,6 @@ import (
 )
 
 func jsonHashBody(r *http.Request) (map[string]string, error) {
-	if r.Header.Get("Content-Type") != "application/json" {
-		return nil, errors.New("Unexpected Content-Type")
-	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to read body")
@@ -52,6 +49,7 @@ func appsHandler(svr sparq.Server) http.HandlerFunc {
 		hash := map[string]string{}
 
 		if strings.Contains(r.Header.Get("Content-Type"), "application/json") {
+			// pinafore POSTs a JSON body
 			// {"client_name":"Pinafore",
 			// "redirect_uris":"https://pinafore.social/settings/instances/add",
 			// "scopes":"read write follow push",
@@ -62,6 +60,7 @@ func appsHandler(svr sparq.Server) http.HandlerFunc {
 				return
 			}
 		} else {
+			// tut POSTs a form body
 			for k, v := range r.Form {
 				hash[k] = v[0]
 			}
@@ -89,7 +88,7 @@ func appsHandler(svr sparq.Server) http.HandlerFunc {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
-		w.Header().Add("Content-Type", "application/json")
+		w.Header().Add("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(b)
 	}
@@ -163,7 +162,7 @@ func appsVerifyHandler(svr sparq.Server) http.HandlerFunc {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
-		w.Header().Add("Content-Type", "application/json")
+		w.Header().Add("Content-Type", "application/json; charset=utf-8")
 		_, _ = w.Write(b)
 	}
 }
@@ -211,7 +210,7 @@ func instanceHandler(svr sparq.Server) http.HandlerFunc {
 	}
 	code := 200
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Content-Type", "application/json")
+		w.Header().Add("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(code)
 		_, _ = w.Write(buf.Bytes())
 	}
