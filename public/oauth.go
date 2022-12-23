@@ -143,7 +143,6 @@ func BearerAuth(store oauth2.TokenStore) func(http.Handler) http.Handler {
 					fmt.Println("Bearer: ", val, ti.GetUserID())
 				}
 			}
-			fmt.Printf("BearerAuth %s\n", r.URL.Path)
 			pass.ServeHTTP(w, r)
 		})
 	}
