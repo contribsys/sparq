@@ -18,33 +18,34 @@ func TestPublicStatic(t *testing.T) {
 	assert.NoError(t, err)
 	defer stopper()
 
-	req := httptest.NewRequest("GET", "http://localhost.dev:9494/static/logo-sm.png", nil)
-	w := httptest.NewRecorder()
 	r := mux.NewRouter()
 	svr := &testSvr{}
 	AddPublicEndpoints(svr, r)
+
+	req := httptest.NewRequest("GET", "http://localhost.dev:9494/static/logo-sm.png", nil)
+	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	assert.Equal(t, 200, w.Code)
 	assert.Contains(t, w.Header().Get("Content-Type"), "image/png")
-}
 
-func TestPublicWeb(t *testing.T) {
-	stopper, err := db.TestDB("public")
-	assert.NoError(t, err)
-	defer stopper()
+	req = httptest.NewRequest("GET", "http://localhost.dev:9494/users/nosuch", nil)
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, 404, w.Code)
+	assert.Contains(t, w.Body.String(), "Not found")
 
-	withQuery("/users/nosuch", func(w *httptest.ResponseRecorder, req *http.Request) {
-		assert.Equal(t, 404, w.Code)
-		assert.Contains(t, w.Body.String(), "Not found")
-	})
-	withQuery("/users/admin", func(w *httptest.ResponseRecorder, req *http.Request) {
-		assert.Equal(t, 200, w.Code)
-		assert.Contains(t, w.Body.String(), "END PUBLIC KEY")
-	})
-	withQuery("/home", func(w *httptest.ResponseRecorder, req *http.Request) {
-		assert.Equal(t, 302, w.Code)
-		assert.Contains(t, w.Body.String(), "/login")
-	})
+	req = httptest.NewRequest("GET", "http://localhost.dev:9494/users/admin", nil)
+	req.Header.Set("Accept", "application/activity+json")
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, 200, w.Code)
+	assert.Contains(t, w.Body.String(), "END PUBLIC KEY")
+
+	req = httptest.NewRequest("GET", "http://localhost.dev:9494/home", nil)
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	assert.Equal(t, 302, w.Code)
+	assert.Contains(t, w.Body.String(), "/login")
 }
 
 func TestPublicLogin(t *testing.T) {
@@ -94,6 +95,6 @@ func withQuery(query string, fn func(w *httptest.ResponseRecorder, req *http.Req
 func rootRouter(s sparq.Server) *mux.Router {
 	root := mux.NewRouter()
 	store := &SqliteOauthStore{DB: s.DB()}
-	root.Use(BearerAuth(store))
+	root.Use(Auth(store))
 	return root
 }

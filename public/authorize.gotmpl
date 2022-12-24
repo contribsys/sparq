@@ -1,0 +1,18 @@
+{{define "page"}}
+<div class="container">
+  <h1>Authorize Application?</h1>
+  <p>
+    Do you wish to grant this application access to your Sparq data?
+  </p>
+  <table>
+    <tr><th>Name</th><td>{{ .Custom.Name }}</td></tr>
+    <tr><th>Website</th><td>{{ .Custom.Website }}</td></tr>
+    <tr><th>Scopes</th><td>{{ .Custom.Scopes }}</td></tr>
+  </table>
+
+  <form method="POST">
+    <button type="submit" name="Approve" value="1" class="btn btn-success">{{ "Approve" | .t }}</button>
+    <button type="submit" name="Deny" value="1" class="btn btn-danger">{{ "Deny" | .t }}</button>
+  </form>
+</div>
+{{end}}

@@ -52,6 +52,10 @@ func (s *Service) Hostname() string {
 	return s.Options.Hostname
 }
 
+func (s *Service) Context() context.Context {
+	return s.ctx
+}
+
 func NewService(opts Options) (*Service, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Service{

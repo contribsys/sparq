@@ -27,7 +27,11 @@ func AddPublicEndpoints(s sparq.Server, mux *mux.Router) {
 	mux.HandleFunc("/accounts/verify_credentials", verifyCredentialsHandler(s))
 	mux.HandleFunc("/accounts/{sfid:[0-9]+}", getAccount)
 	mux.HandleFunc("/accounts/{sfid:[0-9]+}/statuses", getAccountStatuses)
+
+	st := NewStreamer(s)
+	r := mux.PathPrefix("/streaming").Subrouter()
+	r.HandleFunc("/{key}", st.Handler(s))
+
 	// mux.HandleFunc("/accounts/{sfid:[0-9]+}/followers", getAccountFollowers)
 	// mux.HandleFunc("/accounts/{sfid:[0-9]+}/following", getAccountFollowing)
-
 }

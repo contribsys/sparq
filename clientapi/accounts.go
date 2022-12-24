@@ -11,6 +11,7 @@ import (
 	"github.com/contribsys/sparq/model"
 	"github.com/contribsys/sparq/util"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 )
 
 // POST https://mastodon.example/api/v1/accounts
@@ -35,16 +36,20 @@ func verifyCredentialsHandler(s sparq.Server) http.HandlerFunc {
 	accountCredentialTemplate := template.Must(x.Parse(accountCredentialText))
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		session, _ := sessionStore.Get(r, "sparq-session")
-		uid := session.Values["uid"]
+		token := sparq.AccessCode(r)
+		if token == "" {
+			httpError(w, errors.New("No access token supplied"), 401)
+			return
+		}
 
-		// lookupUserAccount
 		var acct model.Account
 		err := s.DB().Get(&acct, `
-		  select * from accounts a
+		  select a.*, ap.* from accounts a
 		  join account_profiles ap 
 			on a.id = ap.accountid 
-			where a.id = ?`, uid)
+		  join oauth_tokens ot 
+			on a.id = ot.userid 
+			where ot.access = ?`, token)
 		if err != nil {
 			httpError(w, err, http.StatusInternalServerError)
 			return

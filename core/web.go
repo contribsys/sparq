@@ -1,9 +1,11 @@
 package core
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/contribsys/sparq"
@@ -12,15 +14,18 @@ import (
 	"github.com/contribsys/sparq/util"
 	"github.com/contribsys/sparq/wellknown"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 )
+
+type stackTracer interface {
+	StackTrace() errors.StackTrace
+}
 
 func rootRouter(s sparq.Server) *mux.Router {
 	root := mux.NewRouter()
 	root.NotFoundHandler = DebugLog(http.NotFoundHandler())
 	root.Use(DebugLog)
 	root.Use(Cors)
-	store := &public.SqliteOauthStore{DB: s.DB()}
-	root.Use(public.BearerAuth(store))
 	return root
 }
 
@@ -35,9 +40,12 @@ func BuildWeb(s *Service) *http.Server {
 	wellknown.AddPublicEndpoints(root)
 
 	ht := &http.Server{
-		Addr:           s.Binding,
-		ReadTimeout:    2 * time.Second,
-		WriteTimeout:   10 * time.Second,
+		Addr:        s.Binding,
+		ReadTimeout: 5 * time.Second,
+
+		// this timeout affects streaming sockets,
+		// will need to reconnect every 5 minutes
+		WriteTimeout:   300 * time.Second,
 		MaxHeaderBytes: 1 << 16,
 		Handler:        root,
 	}
@@ -77,4 +85,15 @@ func DebugLog(pass http.Handler) http.Handler {
 
 		pass.ServeHTTP(w, r)
 	})
+}
+
+func httpError(w http.ResponseWriter, err error, code int) {
+	er := errors.Wrap(err, "Unexpected HTTP error")
+	var build strings.Builder
+	build.WriteString(er.Error())
+	for _, f := range er.(stackTracer).StackTrace() {
+		build.WriteString(fmt.Sprintf("\n%+v", f))
+	}
+	util.Infof(build.String())
+	http.Error(w, err.Error(), code)
 }

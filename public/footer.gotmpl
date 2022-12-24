@@ -1,15 +1,4 @@
-<%
-package public
-
-import (
-  "time"
-  "net/http"
-  "github.com/contribsys/sparq"
-  "github.com/contribsys/sparq/db"
-)
-
-func ego_footer(w io.Writer, req *http.Request) {
-%>
+{{define "footer"}}
 <nav class="navbar navbar-expand-lg" style="margin-top: 30px">
   <div class="container-fluid">
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
@@ -18,13 +7,13 @@ func ego_footer(w io.Writer, req *http.Request) {
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <li class="nav-item me-md-4">
-          <p class="navbar-text mb-0">Sparq <%= sparq.Version %></p>
+          <p class="navbar-text mb-0">Sparq</p>
         </li>
         <li class="nav-item me-md-4">
-          <p class="navbar-text mb-0"><%= db.InstanceHostname %></p>
+          <p class="navbar-text mb-0">{{ hostname }}</p>
         </li>
         <li class="nav-item me-md-4">
-          <p class="navbar-text mb-0"><%= time.Now().UTC().Format("2006-01-02 15:04:05Z") %></p>
+          <p class="navbar-text mb-0">{{ now }}</p>
         </li>
         <li class="nav-item">
           <a class="nav-link disabled">Disabled</a>
@@ -33,4 +22,4 @@ func ego_footer(w io.Writer, req *http.Request) {
     </div>
   </div>
 </nav>
-<% } %>
+{{end}}

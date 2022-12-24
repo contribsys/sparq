@@ -3,31 +3,20 @@ package public
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/contribsys/sparq"
-	"github.com/contribsys/sparq/activitystreams"
-	"github.com/contribsys/sparq/db"
 	"github.com/contribsys/sparq/util"
 	"github.com/gorilla/mux"
-	"github.com/gorilla/sessions"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
 )
-
-//go:generate ego .
 
 type Tab struct {
 	Name string
 	Path string
 }
-
-// openssl rand -hex 32
-// ruby -rsecurerandom -e "puts SecureRandom.hex(32)"
-var sessionStore = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
 
 // func LoggedInHandler(w http.ResponseWriter, r *http.Request) {
 // 	// this handler is called before all resources requiring a logged in user
@@ -74,6 +63,7 @@ func AddPublicEndpoints(s sparq.Server, root *mux.Router) {
 	root.Use(setCtx)
 	root.PathPrefix("/static").Handler(staticHandler)
 	root.HandleFunc("/users/{nick:[a-z0-9]{4,20}}", getUser)
+	root.HandleFunc("/@{nick:[a-z0-9]{4,20}}", getUser)
 	root.HandleFunc("/home", requireLogin(indexHandler))
 	root.HandleFunc("/login", loginHandler(s))
 	root.HandleFunc("/logout", logoutHandler(s))
@@ -86,7 +76,7 @@ func AddPublicEndpoints(s sparq.Server, root *mux.Router) {
 
 func requireLogin(fn http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		session, _ := sessionStore.Get(r, "sparq-session")
+		session, _ := sparq.SessionStore.Get(r, "sparq-session")
 		uid, ok := session.Values["uid"]
 		if !ok {
 			if r.Form == nil {
@@ -106,7 +96,7 @@ func requireLogin(fn http.HandlerFunc) http.HandlerFunc {
 
 func logoutHandler(s sparq.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		session, _ := sessionStore.Get(r, "sparq-session")
+		session, _ := sparq.SessionStore.Get(r, "sparq-session")
 		delete(session.Values, "uid")
 		_ = session.Save(r, w)
 		http.Redirect(w, r, "/login", http.StatusFound)
@@ -115,7 +105,7 @@ func logoutHandler(s sparq.Server) http.HandlerFunc {
 
 func loginHandler(s sparq.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		session, _ := sessionStore.Get(r, "sparq-session")
+		session, _ := sparq.SessionStore.Get(r, "sparq-session")
 		if session.Values["uid"] != nil {
 			util.Debugf("User %d is already logged in", session.Values["uid"])
 			http.Redirect(w, r, "/home", http.StatusFound)
@@ -138,7 +128,7 @@ func loginHandler(s sparq.Server) http.HandlerFunc {
 				if err == sql.ErrNoRows {
 					util.Debugf("Username not found: %s", username)
 					session.AddFlash("Invalid username or password")
-					ego_login(w, r)
+					render(w, r, "login", nil)
 					return
 				}
 				httpError(w, err, http.StatusInternalServerError)
@@ -159,45 +149,12 @@ func loginHandler(s sparq.Server) http.HandlerFunc {
 				return
 			}
 			util.Debugf("Password %q doesn't match: %s", password, hash)
+			session.AddFlash("Invalid username or password")
 		}
-		ego_login(w, r)
+		render(w, r, "login", nil)
 	}
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
-	ego_index(w, r)
-}
-
-func getUser(w http.ResponseWriter, r *http.Request) {
-	nick := mux.Vars(r)["nick"]
-
-	userdata := map[string]interface{}{}
-	err := db.Database().QueryRowx(`
-	select * from accounts	
-	inner join account_securities
-	on accounts.id = account_securities.accountid
-	where accounts.nick = ?`, nick).MapScan(userdata)
-	if err == sql.ErrNoRows {
-		http.Error(w, "Not found", http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		httpError(w, err, http.StatusInternalServerError)
-		return
-	}
-
-	url := "https://" + db.InstanceHostname + "/users/" + nick
-	me := activitystreams.NewPerson(url)
-	me.URL = url
-	me.Name = userdata["fullname"].(string)
-	me.PreferredUsername = userdata["nick"].(string)
-	me.AddPubKey(string(userdata["publickey"].([]uint8)))
-
-	data, err := json.Marshal(me)
-	if err != nil {
-		httpError(w, err, http.StatusInternalServerError)
-		return
-	}
-	w.Header().Add("Content-Type", "application/activity+json")
-	_, _ = w.Write(data)
+	render(w, r, "index", nil)
 }

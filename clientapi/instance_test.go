@@ -131,6 +131,10 @@ func (ts *testSvr) LogLevel() string {
 	return "debug"
 }
 
+func (ts *testSvr) Context() context.Context {
+	return context.Background()
+}
+
 func oauthClientCount(t *testing.T) int {
 	var count int
 	err := db.Database().QueryRow("select count(*) from oauth_clients").Scan(&count)

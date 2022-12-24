@@ -1,0 +1,7 @@
+{{define "flashes"}}
+<div class="container">
+  {{ range .Session.Flashes -}}
+    <div class="row alert alert-primary" role="alert">{{ . }}</div>
+  {{- end }}
+</div>
+{{end}}

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/contribsys/sparq"
 )
 
 var (
@@ -15,6 +17,9 @@ var (
 
 	//go:embed static/locales/*.yml
 	localeFiles embed.FS
+
+	//go:embed *.gotmpl
+	templateFiles embed.FS
 )
 
 type localeMap map[string]map[string]string
@@ -67,21 +72,13 @@ func ctx(r *http.Request) *webCtx {
 }
 
 func loggedIn(r *http.Request) bool {
-	session, _ := sessionStore.Get(r, "sparq-session")
+	session, _ := sparq.SessionStore.Get(r, "sparq-session")
 	return session.Values["username"] != nil
 }
 
 func currentNick(r *http.Request) string {
-	session, _ := sessionStore.Get(r, "sparq-session")
+	session, _ := sparq.SessionStore.Get(r, "sparq-session")
 	return session.Values["username"].(string)
-}
-
-func flashes(w http.ResponseWriter, r *http.Request) {
-	session, _ := sessionStore.Get(r, "sparq-session")
-	if flashy := session.Flashes(); len(flashy) > 0 {
-		ego_flashes(w, r, flashy)
-		_ = session.Save(r, w)
-	}
 }
 
 func (d *webCtx) translate(str string) string {

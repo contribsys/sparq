@@ -1,12 +1,4 @@
-<%
-package public
-
-import (
-  "net/http"
-)
-
-func ego_nav(w io.Writer, r *http.Request) {
-%>
+{{define "nav"}}
 <nav class="navbar navbar-expand-lg" style="margin-bottom: 30px;">
   <div class="container-fluid">
     <a class="navbar-brand" href="/"><img src="/static/logo-sm.png" width="64" height="64"/></a>
@@ -32,11 +24,13 @@ func ego_nav(w io.Writer, r *http.Request) {
             <li><a class="dropdown-item" href="#">Something else here</a></li>
           </ul>
         </li>
-        <% if loggedIn(r) { %>
-          <li class="nav-item">
-            <a class="nav-link disabled"><%= currentNick(r) %></a>
-          </li>
-        <% } %>
+      </ul>
+      <ul class="navbar-nav me-3">
+        {{with .CurrentAccount}}
+          <li class="nav-item">Hello, @{{.Nick}} (<a href="/logout">Sign Out</a>)</li>
+        {{else}}
+          <li class="nav-item"><a class="nav-link" href="/login">Sign In</a></li>
+        {{end}}
       </ul>
       <form class="d-flex" role="search">
         <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search">
@@ -45,4 +39,4 @@ func ego_nav(w io.Writer, r *http.Request) {
     </div>
   </div>
 </nav>
-<% } %>
+{{end}}

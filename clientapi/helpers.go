@@ -35,7 +35,7 @@ func rootRouter(s sparq.Server) *mux.Router {
 	root.Use(DebugLog)
 	root.Use(Cors)
 	store := &public.SqliteOauthStore{DB: s.DB()}
-	root.Use(public.BearerAuth(store))
+	root.Use(public.Auth(store))
 	return root
 }
 
