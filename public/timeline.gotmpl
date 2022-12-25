@@ -1,0 +1,26 @@
+{{define "timeline"}}
+{{ range .Custom }}
+<div class="status">
+  <div class="header">
+    <img src="{{.Author.Avatar}}"/>
+    <p>
+      <a href="{{.Author.LocalProfileURL}}">{{.Author.FullName}}</a><br/>
+      @{{.Author.Nick}}
+    </p>
+    <div>
+      {{.VisibilityIcon}} {{.CreatedAt | relative}}
+    </div>
+  </div>
+  <div class="content">
+    {{.Content}}
+  </div>
+  <div class="media">
+    {{ range .Media }}
+      <img src="{{.URL}}"/>
+    {{ end }}
+  </div>
+</div>
+{{else}}
+  <p>Such empty!</p>
+{{end}}
+{{end}}

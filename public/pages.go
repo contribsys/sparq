@@ -3,6 +3,7 @@ package public
 import (
 	"html/template"
 	"net/http"
+	"time"
 
 	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/db"
@@ -18,7 +19,7 @@ var (
 
 func init() {
 	// these are the pages which can be rendered
-	prepare("index", "profile", "login", "authorize")
+	prepare("index", "profile", "login", "authorize", "home")
 }
 
 func prepare(pages ...string) {
@@ -28,7 +29,8 @@ func prepare(pages ...string) {
 			"base.gotmpl",
 			"nav.gotmpl",
 			"flashes.gotmpl",
-			"footer.gotmpl",
+			"newpost.gotmpl",
+			"timeline.gotmpl",
 			page + ".gotmpl",
 		}
 
@@ -36,6 +38,7 @@ func prepare(pages ...string) {
 		ts.Funcs(template.FuncMap{
 			"now":      util.Nows,
 			"hostname": func() string { return db.InstanceHostname },
+			"relative": func(when time.Time) string { return time.Since(when).String() },
 		})
 		ts, err := ts.ParseFS(templateFiles, files...)
 		if err != nil {
@@ -76,7 +79,10 @@ func (pd *PageData) CurrentAccount() *model.Account {
 	uid, ok := pd.Session().Values["uid"]
 	if ok {
 		var acct model.Account
-		err := db.Database().Get(&acct, "select * from accounts where id = ?", uid)
+		err := db.Database().Get(&acct, `
+		select a.*, ap.* from accounts a
+		join account_profiles ap on ap.accountid = a.id
+		where a.id = ?`, uid)
 		if err != nil {
 			util.Error("Unable to fetch account", err)
 			return nil

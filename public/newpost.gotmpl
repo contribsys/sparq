@@ -1,0 +1,24 @@
+{{define "newpost"}}
+<div class="d-flex flex-column">
+  <div class="me d-flex flex-row">
+    <div class="avatar">
+      <img src="{{.CurrentAccount.Avatar}}" width="50" height="50" />
+    </div>
+    <p class="flex-grow-1">
+      <a href="/@{{.CurrentAccount.Nick}}">
+        {{.CurrentAccount.FullName}}<br/>
+        @{{.CurrentAccount.Nick}}
+      </a>
+    </p>
+    <div class="ms-auto">
+      <a href="/@{{.CurrentAccount.Nick}}">...</a>
+    </div>
+  </div>
+  <div class="composer flex-fill">
+    <form method="POST">
+      <textarea placeholder="Whats happening?"></textarea><br/>
+      <button class="btn btn-primary" type="submit">Toot!</button>
+    </form>
+  </div>
+</div>
+{{end}}

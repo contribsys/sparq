@@ -17,7 +17,7 @@ func TestParseTime(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, tm.Before(time.Now()))
 
-	tm, err = ParseTime("2017-08-17T18:55:26.554544Z")
+	tm, err = ParseTime("2017-08-17T18:55:26.554Z")
 	assert.Nil(t, err)
 	assert.True(t, tm.Before(time.Now()))
 

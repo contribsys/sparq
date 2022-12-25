@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/contribsys/sparq"
+	"github.com/contribsys/sparq/model"
 	"github.com/contribsys/sparq/util"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -64,7 +65,8 @@ func AddPublicEndpoints(s sparq.Server, root *mux.Router) {
 	root.PathPrefix("/static").Handler(staticHandler)
 	root.HandleFunc("/users/{nick:[a-z0-9]{4,20}}", getUser)
 	root.HandleFunc("/@{nick:[a-z0-9]{4,20}}", getUser)
-	root.HandleFunc("/home", requireLogin(indexHandler))
+	root.HandleFunc("/home", requireLogin(homeHandler))
+	root.HandleFunc("/", indexHandler)
 	root.HandleFunc("/login", loginHandler(s))
 	root.HandleFunc("/logout", logoutHandler(s))
 	// mux.HandleFunc("/home", homeHandler)
@@ -153,6 +155,10 @@ func loginHandler(s sparq.Server) http.HandlerFunc {
 		}
 		render(w, r, "login", nil)
 	}
+}
+
+func homeHandler(w http.ResponseWriter, r *http.Request) {
+	render(w, r, "home", []model.Post{})
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
