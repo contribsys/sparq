@@ -17,6 +17,7 @@ func TestStreaming(t *testing.T) {
 
 	handler := s.Handler(ts)
 	assert.NotNil(t, handler)
+	// TODO How to test?
 	// r := httptest.NewRequest("GET", "http://localhost:9494/api/v1/streaming/user", nil)
 	// w := httptest.NewRecorder()
 	// handler(w, r)

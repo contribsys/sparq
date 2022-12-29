@@ -19,8 +19,8 @@ var (
 	newProfileInsert = `
 		insert into account_profiles (accountid) values (?)`
 	newPostInsert = `
-		insert into posts (URI, AuthorId, InReplyTo, Summary, Content)
-		values (?, ?, ?, ?, ?)`
+		insert into posts (URI, AuthorId, InReplyTo, InReplyToAccountId, Summary, Content)
+		values (?, ?, ?, ?, ?, ?)`
 )
 
 func Seed() error {
@@ -38,12 +38,15 @@ func createPosts() error {
 		fmt.Println("Creating fake posts")
 		uri := fmt.Sprintf("https://%s/@admin", InstanceHostname)
 
-		_, _ = dbx.Exec(newPostInsert, uri+"/status/116672815607840768", uri, nil, "CW: Hello World",
+		_, err := dbx.Exec(newPostInsert, uri+"/status/116672815607840768", 1, nil, nil, "CW: Hello World",
 			"This is a test toot!\nAnother line.")
-		_, err := dbx.Exec(newPostInsert, uri+"/status/116672815607840769", uri,
-			uri+"/status/116672815607840768", "CW: Part 2", "This is a test reply!\nAnother line.")
 		if err != nil {
-			return err
+			return errors.Wrap(err, "1")
+		}
+		_, err = dbx.Exec(newPostInsert, uri+"/status/116672815607840769", uri+"/status/116672815607840768", 1, 1,
+			"CW: Part 2", "This is a test reply!\nAnother line.")
+		if err != nil {
+			return errors.Wrap(err, "2")
 		}
 	}
 	return nil

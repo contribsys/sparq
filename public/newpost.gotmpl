@@ -5,10 +5,8 @@
       <img src="{{.CurrentAccount.Avatar}}" width="50" height="50" />
     </div>
     <p class="flex-grow-1">
-      <a href="/@{{.CurrentAccount.Nick}}">
-        {{.CurrentAccount.FullName}}<br/>
-        @{{.CurrentAccount.Nick}}
-      </a>
+      {{.CurrentAccount.FullName}}<br/>
+      @{{.CurrentAccount.Nick}}
     </p>
     <div class="ms-auto">
       <a href="/@{{.CurrentAccount.Nick}}">...</a>
@@ -16,7 +14,16 @@
   </div>
   <div class="composer flex-fill">
     <form method="POST">
-      <textarea placeholder="Whats happening?"></textarea><br/>
+      <input type="hidden" name="in_reply_to_id" value="" />
+      <input type="text" name="spoiler_text" placeholder="content warning..."/>
+      <select name="visibility">
+        <option value="public">Public</option>
+        <option value="unlisted">Unlisted</option>
+        <option value="private">Private</option>
+        <option value="direct">Direct</option>
+        <option value="limited">Limited</option>
+      </select>
+      <textarea name="status" placeholder="Que pasa, amigo?"></textarea><br/>
       <button class="btn btn-primary" type="submit">Toot!</button>
     </form>
   </div>

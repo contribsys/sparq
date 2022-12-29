@@ -1,29 +1,54 @@
 package model
 
 import (
-	"fmt"
-
-	"github.com/contribsys/sparq/db"
+	"time"
 )
+
+type Post struct {
+	ID          int64
+	URI         string
+	InReplyTo   string
+	AuthorID    int64
+	PollID      int64
+	WarningText string
+	Content     string
+	Lang        string
+	Visibility  PostVisibility
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
 
 type PostVisibility int
 
 var (
-	ToPublic        PostVisibility = 0
-	ToMentionedOnly PostVisibility = 1
+	VisPublic    PostVisibility = 0
+	VisUnlisted  PostVisibility = 1
+	VisPrivate   PostVisibility = 2
+	VisDirect    PostVisibility = 3
+	VisLimited   PostVisibility = 4
+	Visibilities                = map[PostVisibility]string{
+		VisPublic:   "public",
+		VisUnlisted: "unlisted",
+		VisPrivate:  "private",
+		VisDirect:   "direct",
+		VisLimited:  "limited",
+	}
 )
 
-func NewPost(author *Account, inReplyTo *Post, summary string, content string, visibility PostVisibility) *Post {
-	sid := Snowflakes.NextID()
-	p := &Post{
-		AttributedTo:   author.URI(),
-		URI:            fmt.Sprintf("https://%s/@%s/statuses/%d", db.InstanceHostname, author.Nick, sid),
-		Summary:        summary,
-		Content:        content,
-		PostVisibility: ToPublic,
+func ToVis(word string) PostVisibility {
+	if word == "public" {
+		return VisPublic
+	} else if word == "unlisted" {
+		return VisUnlisted
+	} else if word == "private" {
+		return VisPrivate
+	} else if word == "direct" {
+		return VisDirect
+	} else if word == "limited" {
+		return VisLimited
 	}
-	if inReplyTo != nil {
-		p.InReplyTo = inReplyTo.URI
-	}
-	return p
+	return VisPublic
+}
+func FromVis(value PostVisibility) string {
+	return Visibilities[value]
 }

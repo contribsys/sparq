@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -239,10 +240,18 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) *SqliteOauthStore {
 	return store
 }
 
+type ContextKey int32
+
+var (
+	AccountIDKey ContextKey = 7
+	Anonymous               = 0
+)
+
 func Auth(store oauth2.TokenStore) func(http.Handler) http.Handler {
 	return func(pass http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			code := sparq.AccessCode(r)
+			aid := Anonymous
 			if code != "" {
 				ti, err := store.GetByAccess(r.Context(), code)
 				if err != nil {
@@ -257,11 +266,20 @@ func Auth(store oauth2.TokenStore) func(http.Handler) http.Handler {
 					_, _ = w.Write([]byte(`{ "error": "invalid_token", "error_description": "The access token expired" }`))
 					return
 				}
+				aid, _ = strconv.Atoi(ti.GetUserID())
 			}
 
-			pass.ServeHTTP(w, r)
+			pass.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), AccountIDKey, aid)))
 		})
 	}
+}
+
+func CurrentAccountID(r *http.Request) int {
+	aid := r.Context().Value(AccountIDKey)
+	if aid == nil {
+		return Anonymous
+	}
+	return aid.(int)
 }
 
 func httpError(w http.ResponseWriter, err error, code int) {
