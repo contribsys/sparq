@@ -53,7 +53,7 @@ func (scs *SqliteOauthStore) Delete(ctx context.Context, id string) error {
 }
 
 func (scs *SqliteOauthStore) Create(ctx context.Context, info oauth2.TokenInfo) error {
-	fmt.Printf("Created OAuth token: %+v\n", info)
+	// fmt.Printf("Created OAuth token: %+v\n", info)
 	_, err := scs.DB.ExecContext(ctx, `INSERT INTO oauth_tokens (
 			ClientId, UserId, RedirectUri, Scope, CodeChallenge,
 			Code, CodeCreatedAt, CodeExpiresIn,
@@ -247,7 +247,6 @@ func Auth(store oauth2.TokenStore) func(http.Handler) http.Handler {
 					return
 				}
 				if ti == nil || ti.GetAccessCreateAt().Add(ti.GetAccessExpiresIn()).Before(time.Now()) {
-					fmt.Println("Access token missing or expired")
 					// access token has expired
 					w.Header().Add("Content-Type", "application/json")
 					w.WriteHeader(http.StatusUnauthorized)

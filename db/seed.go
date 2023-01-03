@@ -35,7 +35,6 @@ func Seed() error {
 
 func createPosts() error {
 	if noRows("select * from posts limit 1") {
-		fmt.Println("Creating fake posts")
 		uri := fmt.Sprintf("https://%s/@admin", InstanceHostname)
 
 		_, err := dbx.Exec(newPostInsert, uri+"/status/116672815607840768", 1, nil, nil, "CW: Hello World",
@@ -61,7 +60,6 @@ func noRows(query string, args ...any) bool {
 
 func createAdmin() error {
 	if noRows("select * from accounts where id = ?", 1) {
-		fmt.Println("Creating admin user")
 		_, err := dbx.Exec(newUserInsert, 1, "116672815607840768", "admin", "admin@"+InstanceHostname, "Sparq Admin", -1)
 		if err != nil {
 			return errors.Wrap(err, "create admin")
