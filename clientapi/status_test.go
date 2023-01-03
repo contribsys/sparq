@@ -38,7 +38,7 @@ func TestStatus(t *testing.T) {
 		var testy map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &testy)
 		assert.NoError(t, err)
-		assert.Equal(t, nil, testy)
+		assert.NotNil(t, testy)
 	})
 
 }

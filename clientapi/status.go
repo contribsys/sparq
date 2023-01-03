@@ -11,7 +11,8 @@ import (
 
 	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/model"
-	"github.com/contribsys/sparq/public"
+	"github.com/contribsys/sparq/util"
+	"github.com/contribsys/sparq/webutil"
 	"github.com/pkg/errors"
 )
 
@@ -33,7 +34,7 @@ type Poll struct {
 	O6             string
 }
 type Status struct {
-	AuthorID           int
+	AuthorID           string
 	Content            string
 	MediaIds           []string
 	InReplyTo          string
@@ -52,16 +53,14 @@ func statusHandler(svr sparq.Server) http.HandlerFunc {
 			httpError(w, errors.New("POST only"), http.StatusBadRequest)
 			return
 		}
-		fmt.Printf("Form: %+v %s\n", r.Form, r.Form.Get("status"))
 		err := r.ParseForm()
 		if err != nil {
 			httpError(w, err, http.StatusBadRequest)
 			return
 		}
-		fmt.Printf("Form: %+v %s\n", r.Form, r.Form.Get("status"))
 
-		aid := public.CurrentAccountID(r)
-		if aid == public.Anonymous {
+		aid := webutil.Ctx(r).CurrentUserID
+		if aid == webutil.Anonymous {
 			httpError(w, errors.New("Unauthorized"), http.StatusUnauthorized)
 			return
 		}
@@ -136,7 +135,17 @@ func statusHandler(svr sparq.Server) http.HandlerFunc {
 
 		w.Header().Add("Content-Type", "application/json")
 		enc := json.NewEncoder(w)
-		err = enc.Encode(post)
+
+		resp := map[string]interface{}{
+			"content":    status.Content,
+			"created_at": util.Thens(post.CreatedAt),
+			"id":         post.ID,
+			"application": map[string]string{
+				"name":    "",
+				"website": "",
+			},
+		}
+		err = enc.Encode(resp)
 		if err != nil {
 			httpError(w, err, http.StatusInternalServerError)
 			return
@@ -179,7 +188,7 @@ func saveStatus(svr sparq.Server, r *http.Request, status *Status) (*model.Post,
 	sid := model.Snowflakes.NextID()
 	p := &model.Post{
 		URI:         fmt.Sprintf("https://%s/@%s/statuses/%d", svr.Hostname(), "admin", sid),
-		AuthorID:    int64(status.AuthorID),
+		AuthorID:    status.AuthorID,
 		WarningText: status.WarningText,
 		Content:     status.Content,
 		Visibility:  model.ToVis(status.Visibility),

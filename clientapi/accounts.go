@@ -10,6 +10,7 @@ import (
 	"github.com/contribsys/sparq/db"
 	"github.com/contribsys/sparq/model"
 	"github.com/contribsys/sparq/util"
+	"github.com/contribsys/sparq/webutil"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 )
@@ -36,7 +37,8 @@ func verifyCredentialsHandler(s sparq.Server) http.HandlerFunc {
 	accountCredentialTemplate := template.Must(x.Parse(accountCredentialText))
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		token := sparq.AccessCode(r)
+		webctx := webutil.Ctx(r)
+		token := webctx.BearerCode
 		if token == "" {
 			httpError(w, errors.New("No access token supplied"), 401)
 			return

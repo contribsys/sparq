@@ -33,6 +33,9 @@ lint:
 	golangci-lint run
 
 run: generate
+	go run ./cmd/sparq run
+
+rund: generate
 	go run ./cmd/sparq run -l debug
 
 build: generate

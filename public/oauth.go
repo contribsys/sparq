@@ -8,8 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/contribsys/sparq"
@@ -17,14 +15,11 @@ import (
 	"github.com/contribsys/sparq/model"
 	"github.com/contribsys/sparq/oauth2"
 	"github.com/contribsys/sparq/util"
+	"github.com/contribsys/sparq/webutil"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
-
-type stackTracer interface {
-	StackTrace() errors.StackTrace
-}
 
 // This is the code necessary to integrate go-oauth/oauth2 into Sparq.
 
@@ -141,7 +136,7 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) *SqliteOauthStore {
 		util.DumpError(re.Error)
 	})
 	root.HandleFunc("/oauth/authorize", requireLogin(func(w http.ResponseWriter, r *http.Request) {
-		session, _ := sparq.SessionStore.Get(r, "sparq-session")
+		session, _ := webutil.SessionStore.Get(r, "sparq-session")
 		v, ok := session.Values["returnForm"]
 		if ok {
 			r.Form = v.(url.Values)
@@ -233,25 +228,18 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) *SqliteOauthStore {
 		}
 	})
 	srv.SetUserAuthorizationHandler(func(w http.ResponseWriter, r *http.Request) (string, error) {
-		session, _ := sparq.SessionStore.Get(r, "sparq-session")
+		session, _ := webutil.SessionStore.Get(r, "sparq-session")
 		uid := session.Values["uid"]
 		return fmt.Sprint(uid), nil
 	})
 	return store
 }
 
-type ContextKey int32
-
-var (
-	AccountIDKey ContextKey = 7
-	Anonymous               = 0
-)
-
 func Auth(store oauth2.TokenStore) func(http.Handler) http.Handler {
 	return func(pass http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			code := sparq.AccessCode(r)
-			aid := Anonymous
+			webctx := webutil.Ctx(r)
+			code := webctx.BearerCode
 			if code != "" {
 				ti, err := store.GetByAccess(r.Context(), code)
 				if err != nil {
@@ -266,29 +254,14 @@ func Auth(store oauth2.TokenStore) func(http.Handler) http.Handler {
 					_, _ = w.Write([]byte(`{ "error": "invalid_token", "error_description": "The access token expired" }`))
 					return
 				}
-				aid, _ = strconv.Atoi(ti.GetUserID())
+				webctx.CurrentUserID = ti.GetUserID()
 			}
 
-			pass.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), AccountIDKey, aid)))
+			pass.ServeHTTP(w, r)
 		})
 	}
 }
 
-func CurrentAccountID(r *http.Request) int {
-	aid := r.Context().Value(AccountIDKey)
-	if aid == nil {
-		return Anonymous
-	}
-	return aid.(int)
-}
-
 func httpError(w http.ResponseWriter, err error, code int) {
-	er := errors.Wrap(err, "Unexpected HTTP error")
-	var build strings.Builder
-	build.WriteString(er.Error())
-	for _, f := range er.(stackTracer).StackTrace() {
-		build.WriteString(fmt.Sprintf("\n%+v", f))
-	}
-	util.Infof(build.String())
-	http.Error(w, err.Error(), code)
+	webutil.HttpError(w, err, code)
 }

@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/contribsys/sparq"
+	"github.com/contribsys/sparq/webutil"
 )
 
 var (
@@ -72,12 +72,12 @@ func ctx(r *http.Request) *webCtx {
 }
 
 func loggedIn(r *http.Request) bool {
-	session, _ := sparq.SessionStore.Get(r, "sparq-session")
+	session, _ := webutil.SessionStore.Get(r, "sparq-session")
 	return session.Values["username"] != nil
 }
 
 func currentNick(r *http.Request) string {
-	session, _ := sparq.SessionStore.Get(r, "sparq-session")
+	session, _ := webutil.SessionStore.Get(r, "sparq-session")
 	return session.Values["username"].(string)
 }
 

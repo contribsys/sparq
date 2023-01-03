@@ -8,7 +8,7 @@ type Post struct {
 	ID          int64
 	URI         string
 	InReplyTo   string
-	AuthorID    int64
+	AuthorID    string
 	PollID      int64
 	WarningText string
 	Content     string

@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/db"
 	"github.com/contribsys/sparq/model"
 	"github.com/contribsys/sparq/util"
+	"github.com/contribsys/sparq/webutil"
 	"github.com/gorilla/sessions"
 	"github.com/pkg/errors"
 )
@@ -65,7 +65,7 @@ func (pd *PageData) T(text string) string {
 }
 
 func (pd *PageData) Session() *sessions.Session {
-	session, err := sparq.SessionStore.Get(pd.r, "sparq-session")
+	session, err := webutil.SessionStore.Get(pd.r, "sparq-session")
 	if err != nil {
 		panic(err)
 	}
