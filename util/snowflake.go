@@ -59,26 +59,28 @@ func NewSnowflake() *Snowflake {
 // NextID returns a new snowflake ID.
 func (id *Snowflake) NextSID() string {
 	sid := id.NextID()
-	ssid := compress(sid)
+	ssid := encode(sid)
 	return ssid
 }
 
-var alphabet = []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
+var alphabet = []rune("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
 
 // XXX Little endian only!
-func compress(num uint64) string {
-	buf := make([]rune, 11)
-	buf[10] = alphabet[num&63]
-	buf[9] = alphabet[(num>>6)&63]
-	buf[8] = alphabet[(num>>12)&63]
-	buf[7] = alphabet[(num>>18)&63]
-	buf[6] = alphabet[(num>>24)&63]
-	buf[5] = alphabet[(num>>30)&63]
-	buf[4] = alphabet[(num>>36)&63]
-	buf[3] = alphabet[(num>>42)&63]
-	buf[2] = alphabet[(num>>48)&63]
-	buf[1] = alphabet[(num>>54)&63]
-	buf[0] = alphabet[(num>>60)&63]
+func encode(num uint64) string {
+	buf := make([]rune, 13)
+	buf[12] = alphabet[num&31]
+	buf[11] = alphabet[(num>>5)&31]
+	buf[10] = alphabet[(num>>10)&31]
+	buf[9] = alphabet[(num>>15)&31]
+	buf[8] = alphabet[(num>>20)&31]
+	buf[7] = alphabet[(num>>25)&31]
+	buf[6] = alphabet[(num>>30)&31]
+	buf[5] = alphabet[(num>>35)&31]
+	buf[4] = alphabet[(num>>40)&31]
+	buf[3] = alphabet[(num>>45)&31]
+	buf[2] = alphabet[(num>>50)&31]
+	buf[1] = alphabet[(num>>55)&31]
+	buf[0] = alphabet[(num>>60)&31]
 	return string(buf)
 }
 

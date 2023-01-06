@@ -29,7 +29,7 @@ func TestCompression(t *testing.T) {
 	sid2 := sgen.NextSID()
 	assert.Greater(t, sid2, sid)
 
-	assert.Equal(t, "AAAAAAAAAB_", compress(127))
+	assert.Equal(t, "AAAAAAAAAAAD9", encode(127))
 }
 
 func BenchmarkSnowflake(b *testing.B) {
