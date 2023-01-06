@@ -13,8 +13,9 @@ create table if not exists `accounts` (
   unique (nick)
 );
 create table if not exists `oauth_clients` (
-  Name           string not null,
+  Id integer primary key,
   ClientId       string not null,
+  Name           string not null,
   Secret         string not null,
   RedirectUris   string not null,
   Website        string not null,
@@ -83,8 +84,8 @@ create table if not exists `actors` (
   sharedinbox string, -- "https://instance.domain/@username"
   foreign key (accountid) references accounts(id) on delete cascade
 );
-create table if not exists `posts` (
-  Id integer primary key,
+create table if not exists `toots` (
+  Sid string not null primary key,
   URI string not null,
   AuthorId integer not null,
   InReplyToAccountId integer,
@@ -95,16 +96,19 @@ create table if not exists `posts` (
   Lang string default 'en',
   Visibility integer not null default 0,
   CollectionId integer,
+  AppId integer,
   PollId integer,
   LastEditAt timestamp,
   DeletedAt timestamp,
   CreatedAt timestamp not null default current_timestamp,
   UpdatedAt timestamp not null default current_timestamp,
   unique (uri),
+  unique (sid),
+  foreign key (AppId) references oauth_clients(Id) on delete set null,
   foreign key (AuthorId) references Accounts(Id) on delete cascade,
   foreign key (InReplyToAccountId) references Accounts(Id) on delete cascade,
-  foreign key (InReplyTo) references Posts(uri) on delete cascade,
-  foreign key (BoostOfId) references Posts(id) on delete cascade,
+  foreign key (InReplyTo) references Toots(uri) on delete cascade,
+  foreign key (BoostOfId) references Toots(id) on delete cascade,
   foreign key (CollectionId) references collections(id) on delete set null
 );
 

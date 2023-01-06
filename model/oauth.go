@@ -9,6 +9,7 @@ import (
 )
 
 type OauthClient struct {
+	Id           int64     `db:"Id"`
 	Name         string    `db:"Name" json:"name"`
 	ClientId     string    `db:"ClientId" json:"client_id"`
 	Secret       string    `db:"Secret" json:"client_secret"`

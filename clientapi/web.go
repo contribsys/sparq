@@ -15,13 +15,14 @@ var (
 )
 
 func AddPublicEndpoints(s sparq.Server, mux *mux.Router) {
+	mux.HandleFunc("/statuses", postStatusHandler(s))
+	mux.HandleFunc("/statuses/{id}", getStatusHandler(s))
 	mux.HandleFunc("/custom_emojis", emptyHandler(s))
 	mux.HandleFunc("/lists", emptyHandler(s))
 	mux.HandleFunc("/filters", emptyHandler(s))
 	mux.HandleFunc("/notifications", emptyHandler(s))
 	mux.HandleFunc("/instance", instanceHandler(s))
 	mux.HandleFunc("/timelines/{type}", timelineHandler(s))
-	mux.HandleFunc("/statuses", statusHandler(s))
 	mux.HandleFunc("/apps/verify_credentials", appsVerifyHandler(s))
 	mux.HandleFunc("/apps", appsHandler(s))
 	mux.HandleFunc("/accounts/verify_credentials", verifyCredentialsHandler(s))
@@ -32,7 +33,6 @@ func AddPublicEndpoints(s sparq.Server, mux *mux.Router) {
 	r := mux.PathPrefix("/streaming").Subrouter()
 	r.HandleFunc("/{key}", st.Handler(s))
 
-	mux.HandleFunc("/statuses", statusHandler(s))
 	// mux.HandleFunc("/accounts/{sfid:[0-9]+}/followers", getAccountFollowers)
 	// mux.HandleFunc("/accounts/{sfid:[0-9]+}/following", getAccountFollowing)
 }

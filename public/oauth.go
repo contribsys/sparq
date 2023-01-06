@@ -29,7 +29,7 @@ type SqliteOauthStore struct {
 
 func (scs *SqliteOauthStore) GetByID(ctx context.Context, id string) (oauth2.ClientInfo, error) {
 	var client model.OauthClient
-	util.Infof("Finding OAuth client %s", id)
+	// util.Infof("Finding OAuth client %s", id)
 	row := scs.DB.QueryRowxContext(ctx, "select * from oauth_clients where ClientId = ?", id)
 	if err := row.Err(); err != nil {
 		if err == sql.ErrNoRows {

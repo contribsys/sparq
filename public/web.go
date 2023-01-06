@@ -131,7 +131,7 @@ func loginHandler(s sparq.Server) http.HandlerFunc {
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
-	render(w, r, "home", []model.Post{})
+	render(w, r, "home", []model.Toot{})
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {

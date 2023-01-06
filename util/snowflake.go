@@ -57,6 +57,31 @@ func NewSnowflake() *Snowflake {
 }
 
 // NextID returns a new snowflake ID.
+func (id *Snowflake) NextSID() string {
+	sid := id.NextID()
+	ssid := compress(sid)
+	return ssid
+}
+
+var alphabet = []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
+
+// XXX Little endian only!
+func compress(num uint64) string {
+	buf := make([]rune, 11)
+	buf[10] = alphabet[num&63]
+	buf[9] = alphabet[(num>>6)&63]
+	buf[8] = alphabet[(num>>12)&63]
+	buf[7] = alphabet[(num>>18)&63]
+	buf[6] = alphabet[(num>>24)&63]
+	buf[5] = alphabet[(num>>30)&63]
+	buf[4] = alphabet[(num>>36)&63]
+	buf[3] = alphabet[(num>>42)&63]
+	buf[2] = alphabet[(num>>48)&63]
+	buf[1] = alphabet[(num>>54)&63]
+	buf[0] = alphabet[(num>>60)&63]
+	return string(buf)
+}
+
 func (id *Snowflake) NextID() uint64 {
 	id.mtx.Lock()
 	defer id.mtx.Unlock()

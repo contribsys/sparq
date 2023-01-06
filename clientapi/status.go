@@ -1,6 +1,7 @@
 package clientapi
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -11,8 +12,9 @@ import (
 
 	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/model"
-	"github.com/contribsys/sparq/util"
 	"github.com/contribsys/sparq/webutil"
+	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
 
@@ -40,14 +42,41 @@ type Status struct {
 	InReplyTo          string
 	InReplyToAccountId string
 	Sensitive          bool
-	WarningText        string
+	Summary            string
 	Visibility         string
 	LanguageCode       string
 	ScheduledAt        string
 	*Poll
 }
 
-func statusHandler(svr sparq.Server) http.HandlerFunc {
+func getStatusHandler(svr sparq.Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			httpError(w, errors.New("GET only"), http.StatusBadRequest)
+			return
+		}
+
+		sid := mux.Vars(r)["id"]
+		attrs, err := TootToJSON(svr.DB(), sid)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				httpError(w, err, http.StatusNotFound)
+				return
+			}
+			httpError(w, err, http.StatusInternalServerError)
+			return
+		}
+		w.Header().Add("Content-Type", "application/json")
+		enc := json.NewEncoder(w)
+		err = enc.Encode(attrs)
+		if err != nil {
+			httpError(w, err, http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+func postStatusHandler(svr sparq.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			httpError(w, errors.New("POST only"), http.StatusBadRequest)
@@ -59,7 +88,8 @@ func statusHandler(svr sparq.Server) http.HandlerFunc {
 			return
 		}
 
-		aid := webutil.Ctx(r).CurrentUserID
+		ctx := webutil.Ctx(r)
+		aid := ctx.CurrentUserID
 		if aid == webutil.Anonymous {
 			httpError(w, errors.New("Unauthorized"), http.StatusUnauthorized)
 			return
@@ -70,7 +100,7 @@ func statusHandler(svr sparq.Server) http.HandlerFunc {
 			Content:      r.Form.Get("status"),
 			InReplyTo:    r.Form.Get("in_reply_to_id"),
 			Sensitive:    r.Form.Get("sensitive") == "true",
-			WarningText:  r.Form.Get("spoiler_text"),
+			Summary:      r.Form.Get("spoiler_text"),
 			Visibility:   r.Form.Get("visibility"),
 			LanguageCode: r.Form.Get("language"),
 			ScheduledAt:  r.Form.Get("scheduled_at"),
@@ -133,28 +163,20 @@ func statusHandler(svr sparq.Server) http.HandlerFunc {
 			return
 		}
 
+		sid := post.SID
+		attrs, err := TootToJSON(svr.DB(), sid)
+		if err != nil {
+			httpError(w, err, http.StatusInternalServerError)
+			return
+		}
 		w.Header().Add("Content-Type", "application/json")
 		enc := json.NewEncoder(w)
-
-		resp := map[string]interface{}{
-			"content":    status.Content,
-			"created_at": util.Thens(post.CreatedAt),
-			"id":         post.ID,
-			"application": map[string]string{
-				"name":    "",
-				"website": "",
-			},
-		}
-		err = enc.Encode(resp)
+		err = enc.Encode(attrs)
 		if err != nil {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
 	}
-}
-
-func UIDFromBearer(r *http.Request) {
-	panic("unimplemented")
 }
 
 func dupeCleaner() {
@@ -184,15 +206,18 @@ func cleanDupeMap() {
 	}
 }
 
-func saveStatus(svr sparq.Server, r *http.Request, status *Status) (*model.Post, error) {
-	sid := model.Snowflakes.NextID()
-	p := &model.Post{
-		URI:         fmt.Sprintf("https://%s/@%s/statuses/%d", svr.Hostname(), "admin", sid),
-		AuthorID:    status.AuthorID,
-		WarningText: status.WarningText,
-		Content:     status.Content,
-		Visibility:  model.ToVis(status.Visibility),
-		InReplyTo:   status.InReplyTo,
+func saveStatus(svr sparq.Server, r *http.Request, status *Status) (*model.Toot, error) {
+	sid := model.Snowflakes.NextSID()
+	p := &model.Toot{
+		SID:        sid,
+		URI:        fmt.Sprintf("https://%s/@%s/statuses/%s", svr.Hostname(), "admin", sid),
+		AuthorID:   status.AuthorID,
+		Summary:    status.Summary,
+		Content:    status.Content,
+		Visibility: model.ToVis(status.Visibility),
+		InReplyTo:  status.InReplyTo,
+		AppID:      webutil.Ctx(r).ClientApp().Id,
+		CreatedAt:  time.Now(),
 	}
 	tx, err := svr.DB().Begin()
 	if err != nil {
@@ -211,9 +236,9 @@ func saveStatus(svr sparq.Server, r *http.Request, status *Status) (*model.Post,
 		p.PollID, _ = res.LastInsertId()
 	}
 	_, err = tx.ExecContext(r.Context(), `
-	  insert into posts (uri, inreplyto, authorid, pollid, summary, content, lang, visibility) values
-		(?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.URI, p.InReplyTo, p.AuthorID, p.PollID, p.WarningText, p.Content, p.Lang, p.Visibility)
+	  insert into toots (sid, uri, inreplyto, authorid, pollid, summary, content, lang, visibility, appid) values
+		(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.SID, p.URI, p.InReplyTo, p.AuthorID, p.PollID, p.Summary, p.Content, p.Lang, p.Visibility, p.AppID)
 	if err != nil {
 		_ = tx.Rollback()
 		return nil, err
@@ -223,4 +248,21 @@ func saveStatus(svr sparq.Server, r *http.Request, status *Status) (*model.Post,
 		return nil, err
 	}
 	return p, nil
+}
+
+func TootToJSON(db *sqlx.DB, sid string) (map[string]interface{}, error) {
+	attrs := map[string]interface{}{}
+	base := `select t.sid as id, t.CreatedAt as created_at, t.Summary as spoiler_text, t.Visibility as viz, t.Lang as language,
+	        t.URI as uri, t.URI as url, 0 as replies_count, 0 as reblogs_count, 0 as favourites_count, false as favourited,
+					false as reblogged, false as muted, false as bookmarked, t.Content as content, null as "reblog", null as application,
+					null as media_attachments, null as mentions, null as tags, null as emojis, null as card, null as poll,
+					oc.name as app_name, oc.website as app_website
+					from toots t
+					left outer join oauth_clients oc on t.appid = oc.id
+					where t.sid = ?`
+	err := db.QueryRowx(base, sid).MapScan(attrs)
+	if err != nil {
+		return nil, errors.Wrap(err, "Error with toot "+sid)
+	}
+	return attrs, nil
 }

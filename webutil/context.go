@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/contribsys/sparq"
+	"github.com/contribsys/sparq/model"
 	"github.com/gorilla/sessions"
 )
 
@@ -26,6 +27,25 @@ type WebCtx struct {
 	BearerCode    string
 	CurrentUserID string
 	LangCode      string
+
+	clientApp *model.OauthClient
+	svr       sparq.Server
+}
+
+func (wc *WebCtx) ClientApp() *model.OauthClient {
+	if wc.clientApp != nil {
+		return wc.clientApp
+	}
+	var client model.OauthClient
+	err := wc.svr.DB().Get(&client, `
+		select c.* from oauth_clients c
+		join oauth_tokens t on t.ClientId = c.ClientId
+		where t.Access = ?`, wc.BearerCode)
+	if err != nil {
+		return nil
+	}
+	wc.clientApp = &client
+	return wc.clientApp
 }
 
 func EstablishContext(svr sparq.Server) func(http.Handler) http.Handler {
@@ -34,6 +54,7 @@ func EstablishContext(svr sparq.Server) func(http.Handler) http.Handler {
 			webctx := &WebCtx{
 				BearerCode: bearerCode(r),
 				LangCode:   langCookie(r),
+				svr:        svr,
 			}
 
 			pass.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), HelperKey, webctx)))
