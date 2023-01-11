@@ -1,4 +1,4 @@
-package webutil
+package web
 
 import (
 	"context"
@@ -52,9 +52,10 @@ func EstablishContext(svr sparq.Server) func(http.Handler) http.Handler {
 	return func(pass http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			webctx := &WebCtx{
-				BearerCode: bearerCode(r),
-				LangCode:   langCookie(r),
-				svr:        svr,
+				BearerCode:    bearerCode(r),
+				LangCode:      langCookie(r),
+				CurrentUserID: IsLoggedIn(r),
+				svr:           svr,
 			}
 
 			pass.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), HelperKey, webctx)))

@@ -5,10 +5,12 @@
 
 test: generate
 	go test github.com/contribsys/sparq/wellknown \
-					github.com/contribsys/sparq/clientapi \
-					github.com/contribsys/sparq/faktoryui \
-					github.com/contribsys/sparq/public \
-					github.com/contribsys/sparq/util
+		github.com/contribsys/sparq/clientapi \
+	github.com/contribsys/sparq/web \
+	github.com/contribsys/sparq/web/adminui \
+	github.com/contribsys/sparq/web/faktoryui \
+	github.com/contribsys/sparq/web/public \
+	github.com/contribsys/sparq/util
 
 int:
 	go run test/main.go
@@ -32,8 +34,9 @@ lint:
 	# brew install golangci/tap/golangci-lint
 	golangci-lint run
 
-run: generate
-	go run ./cmd/sparq run
+run: build
+	open http://localhost:9494
+	./sparq run -l debug
 
 rund: generate
 	go run ./cmd/sparq run -l debug

@@ -1,4 +1,4 @@
-package public
+package web
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/contribsys/sparq/db"
-	"github.com/contribsys/sparq/webutil"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +19,7 @@ func TestPublicOauth(t *testing.T) {
 
 	r := mux.NewRouter()
 	s := &testSvr{}
-	AddPublicEndpoints(s, r)
+	// AddPublicEndpoints(s, r)
 	IntegrateOauth(s, r)
 
 	route(r, "/nosuch", func(w *httptest.ResponseRecorder, req *http.Request) {
@@ -53,7 +52,7 @@ func TestPublicOauth(t *testing.T) {
 
 		req := httptest.NewRequest("GET", "http://localhost.dev:9494/oauth/authorize?client_id=93e60c83-3c57-42ac-abaf-be6bc7ad2e68&redirect_uri=http%3A%2F%2Flocalhost%3A4002%2Fsettings%2Finstances%2Fadd&response_type=code&scope=read%20write%20follow%20push", nil)
 		w := httptest.NewRecorder()
-		session, err := webutil.SessionStore.Get(req, "sparq-session")
+		session, err := SessionStore.Get(req, "sparq-session")
 		assert.NoError(t, err)
 		session.Values["uid"] = 1
 		r.ServeHTTP(w, req)
@@ -62,7 +61,7 @@ func TestPublicOauth(t *testing.T) {
 
 		req = httptest.NewRequest("POST", "http://localhost.dev:9494/oauth/authorize?client_id=93e60c83-3c57-42ac-abaf-be6bc7ad2e68&redirect_uri=http%3A%2F%2Flocalhost%3A4002%2Fsettings%2Finstances%2Fadd&response_type=code&scope=read%20write%20follow%20push&Approve=1", nil)
 		w = httptest.NewRecorder()
-		session, err = webutil.SessionStore.Get(req, "sparq-session")
+		session, err = SessionStore.Get(req, "sparq-session")
 		assert.NoError(t, err)
 		session.Values["uid"] = 1
 		session.Values["username"] = "admin"
@@ -72,7 +71,7 @@ func TestPublicOauth(t *testing.T) {
 
 		req = httptest.NewRequest("POST", "http://localhost.dev:9494/oauth/authorize?client_id=93e60c83-3c57-42ac-abaf-be6bc7ad2e68&redirect_uri=http%3A%2F%2Flocalhost%3A4002%2Fsettings%2Finstances%2Fadd&response_type=code&scope=read%20write%20follow%20push&Deny=1", nil)
 		w = httptest.NewRecorder()
-		session, err = webutil.SessionStore.Get(req, "sparq-session")
+		session, err = SessionStore.Get(req, "sparq-session")
 		assert.NoError(t, err)
 		session.Values["uid"] = 1
 		session.Values["username"] = "admin"
@@ -98,7 +97,7 @@ func TestPublicOauth(t *testing.T) {
 
 		req := httptest.NewRequest("GET", "http://localhost.dev:9494/oauth/authorize?client_id=93e60c83-3c57-42ac-abaf-be6bc7ad2e69&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&response_type=code&scope=read%20write%20follow", nil)
 		w := httptest.NewRecorder()
-		session, err := webutil.SessionStore.Get(req, "sparq-session")
+		session, err := SessionStore.Get(req, "sparq-session")
 		assert.NoError(t, err)
 		session.Values["uid"] = 1
 		r.ServeHTTP(w, req)
@@ -107,7 +106,7 @@ func TestPublicOauth(t *testing.T) {
 
 		req = httptest.NewRequest("POST", "http://localhost.dev:9494/oauth/authorize?client_id=93e60c83-3c57-42ac-abaf-be6bc7ad2e69&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&response_type=code&scope=read%20write%20follow&Approve=1", nil)
 		w = httptest.NewRecorder()
-		session, err = webutil.SessionStore.Get(req, "sparq-session")
+		session, err = SessionStore.Get(req, "sparq-session")
 		assert.NoError(t, err)
 		session.Values["uid"] = 1
 		session.Values["username"] = "admin"

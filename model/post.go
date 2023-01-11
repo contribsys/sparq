@@ -16,7 +16,7 @@ type Toot struct {
 	CreatedAt          time.Time      `json:"created_at"`
 	AuthorID           string
 	PollID             int64
-	AppID              int64
+	AppID              *int64
 	UpdatedAt          time.Time
 }
 

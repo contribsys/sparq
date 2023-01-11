@@ -7,12 +7,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/contribsys/sparq/adminui"
 	"github.com/contribsys/sparq/db"
 	"github.com/contribsys/sparq/faktory"
-	"github.com/contribsys/sparq/faktoryui"
 	"github.com/contribsys/sparq/jobrunner"
 	"github.com/contribsys/sparq/util"
+	"github.com/contribsys/sparq/web/adminui"
+	"github.com/contribsys/sparq/web/faktoryui"
 	"github.com/jmoiron/sqlx"
 	_ "modernc.org/sqlite"
 )

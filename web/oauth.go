@@ -1,4 +1,4 @@
-package public
+package web
 
 import (
 	"context"
@@ -15,7 +15,6 @@ import (
 	"github.com/contribsys/sparq/model"
 	"github.com/contribsys/sparq/oauth2"
 	"github.com/contribsys/sparq/util"
-	"github.com/contribsys/sparq/webutil"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -135,8 +134,8 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) *SqliteOauthStore {
 	srv.SetResponseErrorHandler(func(re *oauth2.Response) {
 		util.DumpError(re.Error)
 	})
-	root.HandleFunc("/oauth/authorize", requireLogin(func(w http.ResponseWriter, r *http.Request) {
-		session, _ := webutil.SessionStore.Get(r, "sparq-session")
+	root.HandleFunc("/oauth/authorize", RequireLogin(func(w http.ResponseWriter, r *http.Request) {
+		session, _ := SessionStore.Get(r, "sparq-session")
 		v, ok := session.Values["returnForm"]
 		if ok {
 			r.Form = v.(url.Values)
@@ -144,7 +143,7 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) *SqliteOauthStore {
 
 		err := r.ParseForm()
 		if err != nil {
-			httpError(w, err, http.StatusBadRequest)
+			HttpError(w, err, http.StatusBadRequest)
 			return
 		}
 
@@ -153,9 +152,9 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) *SqliteOauthStore {
 		client, err := srv.Manager.GetClient(r.Context(), clientId)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				httpError(w, errors.New("Client authorization expired, please start over."), http.StatusBadRequest)
+				HttpError(w, errors.New("Client authorization expired, please start over."), http.StatusBadRequest)
 			} else {
-				httpError(w, err, http.StatusBadRequest)
+				HttpError(w, err, http.StatusBadRequest)
 			}
 			return
 		}
@@ -167,7 +166,7 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) *SqliteOauthStore {
 			_ = session.Save(r, w)
 			err := store.Delete(r.Context(), r.Form.Get("client_id"))
 			if err != nil {
-				httpError(w, err, http.StatusBadRequest)
+				HttpError(w, err, http.StatusBadRequest)
 				return
 			}
 			if oc.RedirectUris == "urn:ietf:wg:oauth:2.0:oob" {
@@ -178,7 +177,7 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) *SqliteOauthStore {
 			u, err := url.Parse(oc.RedirectUris)
 			if err != nil {
 				util.Debugf("Rejected OOB authorization")
-				httpError(w, err, http.StatusBadRequest)
+				HttpError(w, err, http.StatusBadRequest)
 				return
 			}
 			q := u.Query()
@@ -194,27 +193,27 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) *SqliteOauthStore {
 			_ = session.Save(r, w)
 			code, err := srv.HandleAuthorizeRequest(w, r)
 			if err != nil {
-				httpError(w, err, http.StatusBadRequest)
+				HttpError(w, err, http.StatusBadRequest)
 				return
 			}
 			if code != "" {
 				session.AddFlash(fmt.Sprintf("Your authorization code is %s", code))
 			}
 		}
-		render(w, r, "authorize", oc)
+		Render(w, r, "public/authorize", oc)
 	}))
 
 	root.HandleFunc("/oauth/token", func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Content-Type") == "application/json" {
 			bytes, err := io.ReadAll(r.Body)
 			if err != nil {
-				httpError(w, err, http.StatusBadRequest)
+				HttpError(w, err, http.StatusBadRequest)
 				return
 			}
 			data := map[string]string{}
 			err = json.Unmarshal(bytes, &data)
 			if err != nil {
-				httpError(w, err, http.StatusBadRequest)
+				HttpError(w, err, http.StatusBadRequest)
 				return
 			}
 			r.Form = make(url.Values)
@@ -228,7 +227,7 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) *SqliteOauthStore {
 		}
 	})
 	srv.SetUserAuthorizationHandler(func(w http.ResponseWriter, r *http.Request) (string, error) {
-		session, _ := webutil.SessionStore.Get(r, "sparq-session")
+		session, _ := SessionStore.Get(r, "sparq-session")
 		uid := session.Values["uid"]
 		return fmt.Sprint(uid), nil
 	})
@@ -238,12 +237,12 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) *SqliteOauthStore {
 func Auth(store oauth2.TokenStore) func(http.Handler) http.Handler {
 	return func(pass http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			webctx := webutil.Ctx(r)
+			webctx := Ctx(r)
 			code := webctx.BearerCode
 			if code != "" {
 				ti, err := store.GetByAccess(r.Context(), code)
 				if err != nil {
-					httpError(w, err, http.StatusInternalServerError)
+					HttpError(w, err, http.StatusInternalServerError)
 					return
 				}
 				if ti == nil || ti.GetAccessCreateAt().Add(ti.GetAccessExpiresIn()).Before(time.Now()) {
@@ -261,6 +260,31 @@ func Auth(store oauth2.TokenStore) func(http.Handler) http.Handler {
 	}
 }
 
-func httpError(w http.ResponseWriter, err error, code int) {
-	webutil.HttpError(w, err, code)
+func IsLoggedIn(r *http.Request) string {
+	session, _ := SessionStore.Get(r, "sparq-session")
+	uid, ok := session.Values["uid"]
+	if ok {
+		return uid.(string)
+	}
+	return Anonymous
+}
+
+func RequireLogin(fn http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		session, _ := SessionStore.Get(r, "sparq-session")
+		uid, ok := session.Values["uid"]
+		if !ok {
+			if r.Form == nil {
+				_ = r.ParseForm()
+			}
+			util.Debugf("Anonymous, %s requires /login", r.URL.Path)
+			session.Values["returnForm"] = r.Form
+			session.AddFlash("Please sign in to continue")
+			_ = session.Save(r, w)
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+		util.Debugf("Current UID: %s", uid)
+		fn(w, r)
+	}
 }

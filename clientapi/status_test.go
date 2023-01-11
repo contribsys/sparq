@@ -2,6 +2,7 @@ package clientapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http/httptest"
 	"net/url"
 	"strings"
@@ -11,6 +12,21 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestTags(t *testing.T) {
+	tagTests := map[string][]string{
+		"#1foo":                               {},
+		"#_foo":                               {},
+		"# foo":                               {},
+		"#foo":                                {"foo"},
+		"#foo #bar123 # blah":                 {"foo", "bar123"},
+		"a toot with no tags #5b #foo-bar #😡": {},
+		`a toot talkin' about "#hashtag" #discussion #talk`: {"discussion", "talk"},
+	}
+	for tootContent, expectedTags := range tagTests {
+		actualTags := extractTags(tootContent)
+		assert.EqualValues(t, expectedTags, actualTags, tootContent)
+	}
+}
 func TestStatus(t *testing.T) {
 	stopper, err := db.TestDB("status")
 	assert.NoError(t, err)
@@ -62,7 +78,7 @@ func TestStatus(t *testing.T) {
 	})
 
 	t.Run("GetStatus", func(t *testing.T) {
-		form := strings.NewReader(url.Values{"status": []string{"<p>A strong text to post, so brave...</p>"}}.Encode())
+		form := strings.NewReader(url.Values{"status": []string{"A strong text to post, so brave... #brave"}}.Encode())
 		req := httptest.NewRequest("POST", "http://localhost.dev:9494/api/v1/statuses", form)
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -80,9 +96,11 @@ func TestStatus(t *testing.T) {
 		w = httptest.NewRecorder()
 		root.ServeHTTP(w, req)
 		assert.Equal(t, w.Code, 200)
+		fmt.Printf("%+v\n", w.Body.String())
 
 		err = json.Unmarshal(w.Body.Bytes(), &testy)
 		assert.NoError(t, err)
 		assert.NotNil(t, testy)
+		assert.Equal(t, sid, testy["id"])
 	})
 }

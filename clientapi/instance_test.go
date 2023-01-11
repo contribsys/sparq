@@ -13,7 +13,7 @@ import (
 	"github.com/contribsys/sparq/db"
 	"github.com/contribsys/sparq/model"
 	"github.com/contribsys/sparq/oauth2"
-	"github.com/contribsys/sparq/public"
+	"github.com/contribsys/sparq/web"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 )
@@ -174,7 +174,7 @@ func registerToken(t *testing.T, s sparq.Server) (string, error) {
 		AccessExpiresIn: 2 * time.Hour,
 		CreatedAt:       createdAt,
 	}
-	store := &public.SqliteOauthStore{DB: s.DB()}
+	store := &web.SqliteOauthStore{DB: s.DB()}
 	err = store.Create(context.Background(), ti)
 	assert.NoError(t, err)
 	if err != nil {

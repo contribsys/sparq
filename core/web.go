@@ -5,14 +5,14 @@ import (
 	"time"
 
 	"github.com/contribsys/sparq/clientapi"
-	"github.com/contribsys/sparq/public"
-	"github.com/contribsys/sparq/webutil"
+	"github.com/contribsys/sparq/web"
+	"github.com/contribsys/sparq/web/public"
 	"github.com/contribsys/sparq/wellknown"
 )
 
 func BuildWeb(s *Service) *http.Server {
-	root := webutil.RootRouter(s)
-	public.IntegrateOauth(s, root)
+	root := web.RootRouter(s)
+	web.IntegrateOauth(s, root)
 	apiv1 := root.PathPrefix("/api/v1").Subrouter()
 	clientapi.AddPublicEndpoints(s, apiv1)
 	public.AddPublicEndpoints(s, root)

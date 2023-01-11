@@ -1,10 +1,12 @@
 package clientapi
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -12,7 +14,7 @@ import (
 
 	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/model"
-	"github.com/contribsys/sparq/webutil"
+	"github.com/contribsys/sparq/web"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -76,7 +78,7 @@ func getStatusHandler(svr sparq.Server) http.HandlerFunc {
 	}
 }
 
-func postStatusHandler(svr sparq.Server) http.HandlerFunc {
+func PostStatusHandler(svr sparq.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			httpError(w, errors.New("POST only"), http.StatusBadRequest)
@@ -88,9 +90,9 @@ func postStatusHandler(svr sparq.Server) http.HandlerFunc {
 			return
 		}
 
-		ctx := webutil.Ctx(r)
+		ctx := web.Ctx(r)
 		aid := ctx.CurrentUserID
-		if aid == webutil.Anonymous {
+		if aid == web.Anonymous {
 			httpError(w, errors.New("Unauthorized"), http.StatusUnauthorized)
 			return
 		}
@@ -159,7 +161,7 @@ func postStatusHandler(svr sparq.Server) http.HandlerFunc {
 
 		post, err := saveStatus(svr, r, status)
 		if err != nil {
-			httpError(w, err, http.StatusBadRequest)
+			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
 
@@ -216,8 +218,11 @@ func saveStatus(svr sparq.Server, r *http.Request, status *Status) (*model.Toot,
 		Content:    status.Content,
 		Visibility: model.ToVis(status.Visibility),
 		InReplyTo:  status.InReplyTo,
-		AppID:      webutil.Ctx(r).ClientApp().Id,
 		CreatedAt:  time.Now(),
+	}
+	x := web.Ctx(r).ClientApp()
+	if x != nil {
+		p.AppID = &x.Id
 	}
 	tx, err := svr.DB().Begin()
 	if err != nil {
@@ -243,6 +248,11 @@ func saveStatus(svr sparq.Server, r *http.Request, status *Status) (*model.Toot,
 		_ = tx.Rollback()
 		return nil, err
 	}
+	err = saveTags(r.Context(), tx, p)
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
@@ -250,11 +260,40 @@ func saveStatus(svr sparq.Server, r *http.Request, status *Status) (*model.Toot,
 	return p, nil
 }
 
+func saveTags(ctx context.Context, tx *sql.Tx, p *model.Toot) error {
+	tags := extractTags(p.Content)
+	for _, tag := range tags {
+		fmt.Printf("Saving tag for %s: %s\n", p.SID, tag)
+		_, err := tx.ExecContext(ctx, `insert into toot_tags (sid, tag) values (?, ?)`, p.SID, tag)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+var (
+	tagRegexp = regexp.MustCompile(`\s*#([[:alpha:]][[:word:]]{1,20})(?:\s|\z)`)
+	empty     = []string{}
+)
+
+func extractTags(content string) []string {
+	result := tagRegexp.FindAllStringSubmatch(content, -1)
+	if result == nil {
+		return empty
+	}
+	rc := []string{}
+	for _, matches := range result {
+		rc = append(rc, matches[1])
+	}
+	return rc
+}
+
 func TootToJSON(db *sqlx.DB, sid string) (map[string]interface{}, error) {
 	attrs := map[string]interface{}{}
 	base := `select t.sid as id, t.CreatedAt as created_at, t.Summary as spoiler_text, t.Visibility as viz, t.Lang as language,
 	        t.URI as uri, t.URI as url, 0 as replies_count, 0 as reblogs_count, 0 as favourites_count, false as favourited,
-					false as reblogged, false as muted, false as bookmarked, t.Content as content, null as "reblog", null as application,
+					false as reblogged, false as muted, false as bookmarked, t.Content as content, null as reblog,
 					null as media_attachments, null as mentions, null as tags, null as emojis, null as card, null as poll,
 					oc.name as app_name, oc.website as app_website
 					from toots t
@@ -263,6 +302,20 @@ func TootToJSON(db *sqlx.DB, sid string) (map[string]interface{}, error) {
 	err := db.QueryRowx(base, sid).MapScan(attrs)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error with toot "+sid)
+	}
+
+	attrs["visibility"] = model.FromVis(model.PostVisibility(attrs["viz"].(int64)))
+	delete(attrs, "viz")
+
+	if attrs["app_name"] != nil {
+		attrs["application"] = map[string]any{
+			"name":    attrs["app_name"],
+			"website": attrs["app_website"],
+		}
+		delete(attrs, "app_name")
+		delete(attrs, "app_website")
+	} else {
+		attrs["application"] = nil
 	}
 	return attrs, nil
 }

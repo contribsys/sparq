@@ -1,6 +1,7 @@
 package public
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -9,7 +10,9 @@ import (
 
 	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/db"
+	"github.com/contribsys/sparq/web"
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -94,7 +97,26 @@ func withQuery(query string, fn func(w *httptest.ResponseRecorder, req *http.Req
 
 func rootRouter(s sparq.Server) *mux.Router {
 	root := mux.NewRouter()
-	store := &SqliteOauthStore{DB: s.DB()}
-	root.Use(Auth(store))
+	store := &web.SqliteOauthStore{DB: s.DB()}
+	root.Use(web.Auth(store))
 	return root
+}
+
+type testSvr struct {
+}
+
+func (ts *testSvr) DB() *sqlx.DB {
+	return db.Database()
+}
+
+func (ts *testSvr) Hostname() string {
+	return "localhost.dev"
+}
+
+func (ts *testSvr) LogLevel() string {
+	return "debug"
+}
+
+func (ts *testSvr) Context() context.Context {
+	return context.Background()
 }

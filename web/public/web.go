@@ -1,15 +1,16 @@
 package public
 
 import (
-	"context"
 	"database/sql"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/contribsys/sparq"
+	"github.com/contribsys/sparq/clientapi"
 	"github.com/contribsys/sparq/model"
 	"github.com/contribsys/sparq/util"
-	"github.com/contribsys/sparq/webutil"
+	"github.com/contribsys/sparq/web"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
@@ -27,19 +28,12 @@ func cacheControl(pass http.Handler) http.Handler {
 	})
 }
 
-func setCtx(pass http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		req := r.WithContext(context.WithValue(r.Context(), ctxKey, newCtx(w, r)))
-		pass.ServeHTTP(w, req)
-	})
-}
-
 func AddPublicEndpoints(s sparq.Server, root *mux.Router) {
-	root.Use(setCtx)
 	root.PathPrefix("/static").Handler(staticHandler)
 	root.HandleFunc("/users/{nick:[a-z0-9]{4,20}}", getUser)
 	root.HandleFunc("/@{nick:[a-z0-9]{4,20}}", getUser)
-	root.HandleFunc("/home", requireLogin(homeHandler))
+	root.Methods("POST").Path("/home").Handler(clientapi.PostStatusHandler(s))
+	root.HandleFunc("/home", web.RequireLogin(homeHandler))
 	root.HandleFunc("/", indexHandler)
 	root.HandleFunc("/login", loginHandler(s))
 	root.HandleFunc("/logout", logoutHandler(s))
@@ -49,29 +43,9 @@ func AddPublicEndpoints(s sparq.Server, root *mux.Router) {
 	// mux.HandleFunc("/auth/sign_in", signinHandler)
 }
 
-func requireLogin(fn http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		session, _ := webutil.SessionStore.Get(r, "sparq-session")
-		uid, ok := session.Values["uid"]
-		if !ok {
-			if r.Form == nil {
-				_ = r.ParseForm()
-			}
-			util.Debugf("Anonymous, %s requires /login", r.URL.Path)
-			session.Values["returnForm"] = r.Form
-			session.AddFlash("Please sign in to continue")
-			_ = session.Save(r, w)
-			http.Redirect(w, r, "/login", http.StatusFound)
-			return
-		}
-		util.Debugf("Current UID: %d", uid)
-		fn(w, r)
-	}
-}
-
 func logoutHandler(s sparq.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		session, _ := webutil.SessionStore.Get(r, "sparq-session")
+		session, _ := web.SessionStore.Get(r, "sparq-session")
 		delete(session.Values, "uid")
 		_ = session.Save(r, w)
 		http.Redirect(w, r, "/login", http.StatusFound)
@@ -80,9 +54,9 @@ func logoutHandler(s sparq.Server) http.HandlerFunc {
 
 func loginHandler(s sparq.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		session, _ := webutil.SessionStore.Get(r, "sparq-session")
+		session, _ := web.SessionStore.Get(r, "sparq-session")
 		if session.Values["uid"] != nil {
-			util.Debugf("User %d is already logged in", session.Values["uid"])
+			util.Debugf("User %s is already logged in", session.Values["uid"])
 			http.Redirect(w, r, "/home", http.StatusFound)
 			return
 		}
@@ -92,7 +66,7 @@ func loginHandler(s sparq.Server) http.HandlerFunc {
 			}
 			username := strings.ToLower(r.Form.Get("username"))
 			password := r.Form.Get("password")
-			var uid int64
+			var uid uint64
 			var hash []byte
 			err := s.DB().QueryRowxContext(r.Context(), `
 			  select a.id, us.passwordhash
@@ -103,7 +77,7 @@ func loginHandler(s sparq.Server) http.HandlerFunc {
 				if err == sql.ErrNoRows {
 					util.Debugf("Username not found: %s", username)
 					session.AddFlash("Invalid username or password")
-					render(w, r, "login", nil)
+					web.Render(w, r, "public/login", nil)
 					return
 				}
 				httpError(w, err, http.StatusInternalServerError)
@@ -112,7 +86,7 @@ func loginHandler(s sparq.Server) http.HandlerFunc {
 			util.Debugf("Login %s (uid %d)", username, uid)
 			err = bcrypt.CompareHashAndPassword(hash, []byte(password))
 			if err == nil {
-				session.Values["uid"] = uid
+				session.Values["uid"] = strconv.FormatUint(uid, 10)
 				session.Values["username"] = username
 				redir, ok := session.Values["redirectTo"].(string)
 				delete(session.Values, "redirectTo")
@@ -126,14 +100,18 @@ func loginHandler(s sparq.Server) http.HandlerFunc {
 			util.Debugf("Password %q doesn't match: %s", password, hash)
 			session.AddFlash("Invalid username or password")
 		}
-		render(w, r, "login", nil)
+		web.Render(w, r, "public/login", nil)
 	}
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
-	render(w, r, "home", []model.Toot{})
+	web.Render(w, r, "public/home", []model.Toot{})
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
-	render(w, r, "index", nil)
+	if web.IsLoggedIn(r) != web.Anonymous {
+		http.Redirect(w, r, "/home", http.StatusFound)
+		return
+	}
+	web.Render(w, r, "public/index", nil)
 }
