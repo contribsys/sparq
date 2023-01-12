@@ -6,11 +6,14 @@
 test: generate
 	go test github.com/contribsys/sparq/wellknown \
 		github.com/contribsys/sparq/clientapi \
-	github.com/contribsys/sparq/web \
-	github.com/contribsys/sparq/web/adminui \
-	github.com/contribsys/sparq/web/faktoryui \
-	github.com/contribsys/sparq/web/public \
-	github.com/contribsys/sparq/util
+		github.com/contribsys/sparq/faktory \
+		github.com/contribsys/sparq/model \
+		github.com/contribsys/sparq/oauth2 \
+		github.com/contribsys/sparq/web \
+		github.com/contribsys/sparq/web/adminui \
+		github.com/contribsys/sparq/web/faktoryui \
+		github.com/contribsys/sparq/web/public \
+		github.com/contribsys/sparq/util
 
 int:
 	go run test/main.go

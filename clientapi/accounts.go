@@ -51,6 +51,10 @@ func verifyCredentialsHandler(s sparq.Server) http.HandlerFunc {
 		  join oauth_tokens ot on a.id = ot.userid 
 			where ot.access = ?`, token)
 		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				httpJsonResponse(w, map[string]interface{}{"error": "Token not found, please re-authenticate"}, http.StatusUnauthorized)
+				return
+			}
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}

@@ -1,6 +1,7 @@
 package clientapi
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/contribsys/sparq"
@@ -17,4 +18,11 @@ func rootRouter(s sparq.Server) *mux.Router {
 
 func httpError(w http.ResponseWriter, err error, code int) {
 	web.HttpError(w, err, code)
+}
+
+func httpJsonResponse(w http.ResponseWriter, body map[string]interface{}, code int) {
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(code)
+	enc := json.NewEncoder(w)
+	_ = enc.Encode(body)
 }

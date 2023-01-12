@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -21,5 +22,9 @@ func HttpError(w http.ResponseWriter, err error, code int) {
 		build.WriteString(fmt.Sprintf("\n%+v", f))
 	}
 	util.Infof(build.String())
-	http.Error(w, err.Error(), code)
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(code)
+	enc := json.NewEncoder(w)
+	_ = enc.Encode(map[string]string{"error": err.Error()})
 }
