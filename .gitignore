@@ -1,0 +1,4 @@
+redis.log
+faktory.rdb
+*.db
+.vscode/

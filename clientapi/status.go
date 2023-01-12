@@ -59,7 +59,7 @@ func getStatusHandler(svr sparq.Server) http.HandlerFunc {
 		}
 
 		sid := mux.Vars(r)["id"]
-		attrs, err := TootToJSON(svr.DB(), sid)
+		attrs, err := TootMap(svr.DB(), sid)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				httpError(w, err, http.StatusNotFound)
@@ -166,7 +166,7 @@ func PostStatusHandler(svr sparq.Server) http.HandlerFunc {
 		}
 
 		sid := post.SID
-		attrs, err := TootToJSON(svr.DB(), sid)
+		attrs, err := TootMap(svr.DB(), sid)
 		if err != nil {
 			httpError(w, err, http.StatusInternalServerError)
 			return
@@ -289,9 +289,9 @@ func extractTags(content string) []string {
 	return rc
 }
 
-func TootToJSON(db *sqlx.DB, sid string) (map[string]interface{}, error) {
+func TootMap(db *sqlx.DB, sid string) (map[string]interface{}, error) {
 	attrs := map[string]interface{}{}
-	base := `select t.sid as id, t.CreatedAt as created_at, t.Summary as spoiler_text, t.Visibility as viz, t.Lang as language,
+	base := `select t.sid as id, t.AuthorId as authorId, t.CreatedAt as created_at, t.Summary as spoiler_text, t.Visibility as viz, t.Lang as language,
 	        t.URI as uri, t.URI as url, 0 as replies_count, 0 as reblogs_count, 0 as favourites_count, false as favourited,
 					false as reblogged, false as muted, false as bookmarked, t.Content as content, null as reblog,
 					null as media_attachments, null as mentions, null as tags, null as emojis, null as card, null as poll,

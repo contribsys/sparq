@@ -31,6 +31,7 @@ func cacheControl(pass http.Handler) http.Handler {
 func AddPublicEndpoints(s sparq.Server, root *mux.Router) {
 	root.PathPrefix("/static").Handler(staticHandler)
 	root.HandleFunc("/users/{nick:[a-z0-9]{4,20}}", getUser)
+	root.HandleFunc("/@{nick:[a-z0-9]{4,20}}/{id:[A-Z0-9]+}", showStatusHandler(s))
 	root.HandleFunc("/@{nick:[a-z0-9]{4,20}}", getUser)
 	root.Methods("POST").Path("/home").Handler(clientapi.PostStatusHandler(s))
 	root.HandleFunc("/home", web.RequireLogin(homeHandler))
@@ -41,6 +42,27 @@ func AddPublicEndpoints(s sparq.Server, root *mux.Router) {
 	// mux.HandleFunc("/public", publicHandler)
 	// mux.HandleFunc("/auth/sign_up", signupHandler)
 	// mux.HandleFunc("/auth/sign_in", signinHandler)
+}
+
+func showStatusHandler(svr sparq.Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		sid := mux.Vars(r)["id"]
+		attrs, err := clientapi.TootMap(svr.DB(), sid)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				httpError(w, err, http.StatusNotFound)
+				return
+			}
+			httpError(w, err, http.StatusInternalServerError)
+			return
+		}
+		if attrs["visibility"] == "public" ||
+			attrs["authorId"] == web.IsLoggedIn(r) {
+			web.Render(w, r, "public/status", attrs)
+		} else {
+			httpError(w, err, http.StatusNotFound)
+		}
+	}
 }
 
 func logoutHandler(s sparq.Server) http.HandlerFunc {
