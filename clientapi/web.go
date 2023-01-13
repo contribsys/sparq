@@ -22,6 +22,7 @@ func AddPublicEndpoints(s sparq.Server, mux *mux.Router) {
 	mux.HandleFunc("/filters", emptyHandler(s))
 	mux.HandleFunc("/notifications", emptyHandler(s))
 	mux.HandleFunc("/instance", instanceHandler(s))
+	mux.HandleFunc("/timelines/public", publicHandler(s))
 	mux.HandleFunc("/timelines/home", homeHandler(s))
 	mux.HandleFunc("/timelines/{name}", listHandler(s))
 	mux.HandleFunc("/apps/verify_credentials", appsVerifyHandler(s))

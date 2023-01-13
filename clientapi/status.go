@@ -241,9 +241,9 @@ func saveStatus(svr sparq.Server, r *http.Request, status *Status) (*model.Toot,
 		p.PollID, _ = res.LastInsertId()
 	}
 	_, err = tx.ExecContext(r.Context(), `
-	  insert into toots (sid, uri, inreplyto, authorid, pollid, summary, content, lang, visibility, appid) values
-		(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.SID, p.URI, p.InReplyTo, p.AuthorID, p.PollID, p.Summary, p.Content, p.Lang, p.Visibility, p.AppID)
+	  insert into toots (sid, uri, inreplyto, authorid, actorid, pollid, summary, content, lang, visibility, appid) values
+		(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.SID, p.URI, p.InReplyTo, p.AuthorID, p.AuthorID, p.PollID, p.Summary, p.Content, p.Lang, p.Visibility, p.AppID)
 	if err != nil {
 		_ = tx.Rollback()
 		return nil, err

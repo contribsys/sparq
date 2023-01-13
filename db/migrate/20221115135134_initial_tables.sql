@@ -78,8 +78,9 @@ create table if not exists `collections` (
   foreign key (AccountId) references accounts(id) on delete cascade 
 );
 create table if not exists `actors` (
-  Id string primary key, -- "https://instance.domain/@username"
-  Accountid integer, -- if this is a local user, this will be non-null
+  Id integer not null primary key,
+  AccountId integer, -- if this is a local user, this will be non-null
+  Url string, -- "https://instance.domain/@username"
   Inbox string, -- "https://instance.domain/@username/inbox"
   SharedInbox string, -- "https://instance.domain/@username"
   foreign key (accountid) references accounts(id) on delete cascade
@@ -107,7 +108,8 @@ create index idx_toot_tags_tag on toot_tags(tag);
 create table if not exists `toots` (
   Sid string not null primary key,
   URI string not null,
-  AuthorId integer not null,
+  ActorId integer not null,
+  AuthorId integer,
   InReplyToAccountId integer,
   InReplyTo string,
   BoostOfId integer,
@@ -125,6 +127,7 @@ create table if not exists `toots` (
   unique (uri),
   unique (sid),
   foreign key (AppId) references oauth_clients(Id) on delete set null,
+  foreign key (ActorId) references Actors(Id) on delete cascade,
   foreign key (AuthorId) references Accounts(Id) on delete cascade,
   foreign key (InReplyToAccountId) references Accounts(Id) on delete cascade,
   foreign key (InReplyTo) references Toots(uri) on delete cascade,
@@ -133,7 +136,9 @@ create table if not exists `toots` (
 );
 
 -- +goose Down
-drop table posts;
+drop table toot_medias;
+drop table toot_tags;
+drop table toots;
 drop table actors;
 drop table collections;
 drop table account_securities;

@@ -13,14 +13,16 @@ var (
 	newUserInsert = `
 		insert into accounts (Id, Sfid, Nick, Email, FullName, RoleMask)
 		values (?, ?, ?, ?, ?, ?)`
+	newActorInsert = `
+		insert into actors (AccountId) values (?)`
 	newSecurityInsert = `
 		insert into account_securities (AccountId, PasswordHash, PublicKey, PrivateKey)
 		values (?, ?, ?, ?)`
 	newProfileInsert = `
-		insert into account_profiles (accountid) values (?)`
+		insert into account_profiles (AccountId) values (?)`
 	newPostInsert = `
-		insert into posts (URI, AuthorId, InReplyTo, InReplyToAccountId, Summary, Content)
-		values (?, ?, ?, ?, ?, ?)`
+		insert into posts (SID, URI, AuthorId, ActorId, InReplyTo, InReplyToAccountId, Summary, Content)
+		values (?, ?, ?, ?, ?, ?, ?, ?)`
 )
 
 func Seed() error {
@@ -37,12 +39,12 @@ func createPosts() error {
 	if noRows("select * from posts limit 1") {
 		uri := fmt.Sprintf("https://%s/@admin", InstanceHostname)
 
-		_, err := dbx.Exec(newPostInsert, uri+"/status/116672815607840768", 1, nil, nil, "CW: Hello World",
+		_, err := dbx.Exec(newPostInsert, "AABA", uri+"/status/AABA", 1, 1, nil, nil, "CW: Hello World",
 			"This is a test toot!\nAnother line.")
 		if err != nil {
 			return errors.Wrap(err, "1")
 		}
-		_, err = dbx.Exec(newPostInsert, uri+"/status/116672815607840769", uri+"/status/116672815607840768", 1, 1,
+		_, err = dbx.Exec(newPostInsert, "AABB", uri+"/status/AABB", 1, 1, uri+"/status/AABA", 1,
 			"CW: Part 2", "This is a test reply!\nAnother line.")
 		if err != nil {
 			return errors.Wrap(err, "2")
@@ -85,7 +87,7 @@ func createAdmin() error {
 		if err != nil {
 			return errors.Wrap(err, "account fields")
 		}
-		_, err = dbx.Exec("insert into actors (Id,AccountId) values (?, ?)", "https://"+InstanceHostname+"/@admin", 1)
+		_, err = dbx.Exec("insert into actors (AccountId) values (?)", 1)
 		if err != nil {
 			return errors.Wrap(err, "new actor")
 		}
