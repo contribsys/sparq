@@ -5,19 +5,25 @@ import (
 )
 
 type Toot struct {
-	SID                string         `json:"id"`
-	URI                string         `json:"uri"`
-	InReplyTo          string         `json:"in_reply_to_id,omitempty"`
-	InReplyToAccountId int64          `json:"in_reply_to_account_id,omitempty"`
+	Sid                string `json:"id"`
+	URI                string `json:"uri"`
+	AccountId          uint64
+	ActorId            uint64
+	BoostOfId          *string
+	InReplyTo          *string        `json:"in_reply_to_id,omitempty"`
+	InReplyToAccountId *uint64        `json:"in_reply_to_account_id,omitempty"`
 	Summary            string         `json:"spoiler_text"`
 	Content            string         `json:"content"`
 	Lang               string         `json:"language"`
 	Visibility         PostVisibility `json:"visibility"`
 	CreatedAt          time.Time      `json:"created_at"`
 	AuthorID           string
-	PollID             int64
-	AppID              *int64
+	CollectionId       *uint64
+	PollID             *uint64
+	AppID              *uint64
+	LastEditAt         *time.Time
 	UpdatedAt          time.Time
+	DeletedAt          *time.Time
 }
 
 type PostVisibility int

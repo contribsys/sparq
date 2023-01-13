@@ -9,13 +9,13 @@ import (
 )
 
 type OauthClient struct {
-	Id           int64     `db:"Id"`
+	Id           uint64    `db:"Id"`
 	Name         string    `db:"Name" json:"name"`
 	ClientId     string    `db:"ClientId" json:"client_id"`
 	Secret       string    `db:"Secret" json:"client_secret"`
 	RedirectUris string    `db:"RedirectUris" json:"redirect_uri"`
 	Website      string    `db:"Website" json:"website"`
-	UserId       *int      `db:"UserId"`
+	UserId       *uint64   `db:"UserId"`
 	Scopes       string    `db:"Scopes"`
 	CreatedAt    time.Time `db:"CreatedAt"`
 }

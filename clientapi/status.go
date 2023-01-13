@@ -41,8 +41,8 @@ type Status struct {
 	AuthorID           string
 	Content            string
 	MediaIds           []string
-	InReplyTo          string
-	InReplyToAccountId string
+	InReplyTo          *string
+	InReplyToAccountId *string
 	Sensitive          bool
 	Summary            string
 	Visibility         string
@@ -100,12 +100,15 @@ func PostStatusHandler(svr sparq.Server) http.HandlerFunc {
 		status := &Status{
 			AuthorID:     aid,
 			Content:      r.Form.Get("status"),
-			InReplyTo:    r.Form.Get("in_reply_to_id"),
 			Sensitive:    r.Form.Get("sensitive") == "true",
 			Summary:      r.Form.Get("spoiler_text"),
 			Visibility:   r.Form.Get("visibility"),
 			LanguageCode: r.Form.Get("language"),
 			ScheduledAt:  r.Form.Get("scheduled_at"),
+		}
+		rto := r.Form.Get("in_reply_to_id")
+		if rto != "" {
+			status.InReplyTo = &rto
 		}
 		if status.Content == "" {
 			httpError(w, errors.New("No content!"), 400)
@@ -165,7 +168,7 @@ func PostStatusHandler(svr sparq.Server) http.HandlerFunc {
 			return
 		}
 
-		sid := post.SID
+		sid := post.Sid
 		attrs, err := TootMap(svr.DB(), sid)
 		if err != nil {
 			httpError(w, err, http.StatusInternalServerError)
@@ -211,7 +214,7 @@ func cleanDupeMap() {
 func saveStatus(svr sparq.Server, r *http.Request, status *Status) (*model.Toot, error) {
 	sid := model.Snowflakes.NextSID()
 	p := &model.Toot{
-		SID:        sid,
+		Sid:        sid,
 		URI:        fmt.Sprintf("https://%s/@%s/statuses/%s", svr.Hostname(), "admin", sid),
 		AuthorID:   status.AuthorID,
 		Summary:    status.Summary,
@@ -238,12 +241,14 @@ func saveStatus(svr sparq.Server, r *http.Request, status *Status) (*model.Toot,
 			_ = tx.Rollback()
 			return nil, err
 		}
-		p.PollID, _ = res.LastInsertId()
+		x, _ := res.LastInsertId()
+		y := uint64(x)
+		p.PollID = &y
 	}
 	_, err = tx.ExecContext(r.Context(), `
 	  insert into toots (sid, uri, inreplyto, authorid, actorid, pollid, summary, content, lang, visibility, appid) values
 		(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.SID, p.URI, p.InReplyTo, p.AuthorID, p.AuthorID, p.PollID, p.Summary, p.Content, p.Lang, p.Visibility, p.AppID)
+		p.Sid, p.URI, p.InReplyTo, p.AuthorID, p.AuthorID, p.PollID, p.Summary, p.Content, p.Lang, p.Visibility, p.AppID)
 	if err != nil {
 		_ = tx.Rollback()
 		return nil, err
@@ -263,8 +268,8 @@ func saveStatus(svr sparq.Server, r *http.Request, status *Status) (*model.Toot,
 func saveTags(ctx context.Context, tx *sql.Tx, p *model.Toot) error {
 	tags := extractTags(p.Content)
 	for _, tag := range tags {
-		fmt.Printf("Saving tag for %s: %s\n", p.SID, tag)
-		_, err := tx.ExecContext(ctx, `insert into toot_tags (sid, tag) values (?, ?)`, p.SID, tag)
+		fmt.Printf("Saving tag for %s: %s\n", p.Sid, tag)
+		_, err := tx.ExecContext(ctx, `insert into toot_tags (sid, tag) values (?, ?)`, p.Sid, tag)
 		if err != nil {
 			return err
 		}

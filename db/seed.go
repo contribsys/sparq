@@ -35,7 +35,7 @@ func Seed(dbx *sqlx.DB) error {
 }
 
 func createToots(dbx *sqlx.DB) error {
-	if noRows(dbx, "select * from posts limit 1") {
+	if noRows(dbx, "select * from toots limit 1") {
 		uri := fmt.Sprintf("https://%s/@admin", InstanceHostname)
 
 		_, err := dbx.Exec(newTootInsert, "AABA", uri+"/status/AABA", 1, 1, nil, nil, "CW: Hello World",

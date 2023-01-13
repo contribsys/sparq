@@ -17,9 +17,16 @@ func TestLocal(t *testing.T) {
 	fmt.Printf("Found %d toots\n", count)
 
 	tq := TQ(ts.DB())
-	// tq.local = true
+	tq.local = true
 	// tq.only_media = true
 	res, err := tq.Execute()
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(res))
+
+	tq = TQ(ts.DB())
+	// tq.local = true
+	tq.only_media = true
+	res, err = tq.Execute()
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(res))
 }

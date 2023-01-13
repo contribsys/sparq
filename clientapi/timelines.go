@@ -36,7 +36,7 @@ func (tq *TimelineQuery) Execute() ([]*model.Toot, error) {
 	if tq.limit > 50 {
 		tq.limit = 50
 	}
-	base := sq.Select(`t.sid`).From("toots t").
+	base := sq.Select(`t.*`).From("toots t").
 		// JoinClause("LEFT OUTER JOIN oauth_clients oc on t.appid = oc.id").
 		Limit(tq.limit)
 	if tq.min_id != "" && tq.max_id != "" {
@@ -49,7 +49,7 @@ func (tq *TimelineQuery) Execute() ([]*model.Toot, error) {
 		base = base.Where("t.sid > ?", tq.since_id)
 	}
 	if tq.only_media {
-		base = base.LeftJoin("toot_medias tm on t.sid = tm.sid")
+		base = base.Join("toot_medias tm on t.sid = tm.sid")
 	}
 	if tq.list_id != 0 {
 		// TODO
@@ -69,17 +69,17 @@ func (tq *TimelineQuery) Execute() ([]*model.Toot, error) {
 		return nil, errors.Wrap(err, "Invalid timeline query")
 	}
 	results := make([]*model.Toot, 0)
-	rows, err := tq.db.Query(sql, args...)
+	rows, err := tq.db.Queryx(sql, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "Bad timeline query")
 	}
 	for rows.Next() {
-		toot := &model.Toot{}
-		err := rows.Scan(&toot)
+		toot := model.Toot{}
+		err := rows.StructScan(&toot)
 		if err != nil {
-			return nil, errors.Wrap(err, "Toot")
+			return nil, errors.Wrap(err, "Toot query")
 		}
-		results = append(results, toot)
+		results = append(results, &toot)
 	}
 	return results, nil
 }
