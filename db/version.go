@@ -12,16 +12,8 @@ import (
 )
 
 var (
-	dbx    *sqlx.DB
-	dbVer  int64
-	migVer int64
-
 	InstanceHostname string = "localhost.dev"
 )
-
-func Database() *sqlx.DB {
-	return dbx
-}
 
 type DatabaseOptions struct {
 	Filename         string
@@ -35,84 +27,75 @@ var (
 	}
 )
 
-func TestDB(filename string) (func(), error) {
+func TestDB(filename string) (*sqlx.DB, func(), error) {
 	return InitDB(filename, true)
 }
 
 // Used to initialize a new database for tests
-func InitDB(filename string, remove bool) (func(), error) {
+func InitDB(filename string, remove bool) (*sqlx.DB, func(), error) {
 	fname := fmt.Sprintf("./sparq.%s.db", filename)
-	err := OpenDB(DatabaseOptions{
+	dbx, err := OpenDB(DatabaseOptions{
 		Filename:         fname,
 		SkipVersionCheck: true,
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if err := goose.Up(dbx.DB, "migrate"); err != nil {
-		return nil, errors.Wrap(err, "Unable to migrate database")
+		return nil, nil, errors.Wrap(err, "Unable to migrate database")
 	}
-	if err := Seed(); err != nil {
-		return nil, errors.Wrap(err, "Unable to seed database")
+	if err := Seed(dbx); err != nil {
+		return nil, nil, errors.Wrap(err, "Unable to seed database")
 	}
 
-	return func() {
+	return dbx, func() {
 		dbx.Close()
-		dbx = nil
 		if remove {
 			_ = os.Remove(fname)
 		}
 	}, nil
 }
 
-func OpenDB(opts DatabaseOptions) error {
+func OpenDB(opts DatabaseOptions) (*sqlx.DB, error) {
 	var err error
-	dbx, err = sqlx.Open("sqlite", opts.Filename)
+	dbx, err := sqlx.Open("sqlite", opts.Filename)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	err = goose.SetDialect("sqlite3")
 	if err != nil {
-		return err
+		return nil, err
 	}
-	dbVer, err = getDatabaseVersion()
+	dbVer, err := getDatabaseVersion(dbx)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	migVer, err = getMigrationsVersion()
+	migVer, err := getMigrationsVersion(dbx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if opts.SkipVersionCheck {
-		return nil
+		return dbx, nil
 	}
-	return versionCheck()
+	util.Debugf("Database: %d, Migrations: %d", dbVer, migVer)
+
+	if dbVer > migVer {
+		return nil, errors.New(fmt.Sprintf("Your sparq database version %d is too new, expecting <= %d. Are you accidentally running an old binary?", dbVer, migVer))
+	}
+
+	if dbVer < migVer {
+		return nil, errors.New("Please migrate your sparq database, run `sparq migrate`")
+	}
+	return dbx, nil
 }
 
-func CloseDatabase() error {
-	return dbx.Close()
-}
-
-func SqliteVersion() string {
+func SqliteVersion(dbx *sqlx.DB) string {
 	var ver string
 	_ = dbx.QueryRow("select sqlite_version()").Scan(&ver)
 	return ver
 }
 
-func LoadHostname() error {
-	return dbx.QueryRow("select hostname from instance;").Scan(&InstanceHostname)
-}
-
-func versionCheck() error {
-	util.Debugf("Database: %d, Migrations: %d", dbVer, migVer)
-
-	if dbVer > migVer {
-		return fmt.Errorf("Your sparq database version %d is too new, expecting <= %d. Are you accidentally running an old binary?", dbVer, migVer)
-	}
-
-	if dbVer < migVer {
-		return fmt.Errorf("Please migrate your sparq database, run `sparq migrate`")
-	}
-	return nil
-}
+// func LoadHostname(dbx *sqlx.DB) error {
+// 	return dbx.QueryRow("select hostname from instance;").Scan(&InstanceHostname)
+// }

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/contribsys/sparq"
-	"github.com/contribsys/sparq/db"
 	"github.com/contribsys/sparq/model"
 	"github.com/contribsys/sparq/oauth2"
 	"github.com/contribsys/sparq/util"
@@ -110,7 +109,7 @@ func (scs *SqliteOauthStore) GetByRefresh(ctx context.Context, refresh string) (
 
 func IntegrateOauth(s sparq.Server, root *mux.Router) *SqliteOauthStore {
 	manager := oauth2.NewDefaultManager()
-	store := &SqliteOauthStore{db.Database()}
+	store := &SqliteOauthStore{s.DB()}
 	manager.MapTokenStorage(store)
 	manager.MapClientStorage(store)
 

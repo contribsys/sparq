@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/contribsys/sparq/db"
 	"github.com/contribsys/sparq/faktory"
 	"github.com/contribsys/sparq/jobrunner"
 	"github.com/contribsys/sparq/util"
@@ -37,11 +36,12 @@ type Service struct {
 	https  *http.Server
 	cancel context.CancelFunc
 	ctx    context.Context
+	db     *sqlx.DB
 }
 
 // Implement sparq.Server interface
 func (s *Service) DB() *sqlx.DB {
-	return db.Database()
+	return s.db
 }
 
 func (s *Service) LogLevel() string {
@@ -56,7 +56,7 @@ func (s *Service) Context() context.Context {
 	return s.ctx
 }
 
-func NewService(opts Options) (*Service, error) {
+func NewService(db *sqlx.DB, opts Options) (*Service, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Service{
 		ctx:     ctx,

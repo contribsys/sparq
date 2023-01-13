@@ -12,6 +12,7 @@ import (
 )
 
 type TimelineQuery struct {
+	// these parameters match Mastodon's API parameters
 	min_id     string
 	max_id     string
 	since_id   string
@@ -35,31 +36,33 @@ func (tq *TimelineQuery) Execute() ([]*model.Toot, error) {
 	if tq.limit > 50 {
 		tq.limit = 50
 	}
-	base := sq.Select(`t.*, oc.*`).From("toots t").
-		JoinClause("LEFT OUTER JOIN oauth_clients oc on t.appid = oc.id").
+	base := sq.Select(`t.sid`).From("toots t").
+		// JoinClause("LEFT OUTER JOIN oauth_clients oc on t.appid = oc.id").
 		Limit(tq.limit)
 	if tq.min_id != "" && tq.max_id != "" {
-		base.Where("t.sid between ? and ?", tq.min_id)
+		base = base.Where("t.sid between ? and ?", tq.min_id)
 	} else if tq.min_id != "" {
-		base.Where("t.sid > ?", tq.min_id)
+		base = base.Where("t.sid > ?", tq.min_id)
 	} else if tq.max_id != "" {
-		base.Where("t.sid <= ?", tq.max_id)
+		base = base.Where("t.sid <= ?", tq.max_id)
 	} else if tq.since_id != "" {
-		base.Where("t.sid > ?", tq.since_id)
+		base = base.Where("t.sid > ?", tq.since_id)
 	}
 	if tq.only_media {
-		base.LeftJoin("toot_medias tm on t.sid = tm.sid")
+		base = base.LeftJoin("toot_medias tm on t.sid = tm.sid")
+	}
+	if tq.list_id != 0 {
+		// TODO
 	}
 	if tq.local || tq.remote {
 		if tq.local {
-			base.Where("t.account_id is not null")
+			base = base.Where("t.authorId is not null")
 		} else {
-			base.Where("t.account_id is null")
+			base = base.Where("t.authorId is null")
 		}
 	}
-	// TODO: list_id
 
-	base.OrderBy("t.CreatedAt DESC")
+	base = base.OrderBy("t.CreatedAt DESC")
 	sql, args, err := base.ToSql()
 	fmt.Println(sql)
 	if err != nil {

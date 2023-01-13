@@ -1,20 +1,25 @@
 package clientapi
 
 import (
+	"fmt"
 	"testing"
 
-	"github.com/contribsys/sparq/db"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestLocal(t *testing.T) {
-	stopper, err := db.TestDB("status")
-	assert.NoError(t, err)
+	ts, stopper := testServer(t, "timeline")
 	defer stopper()
 
-	tq := TQ(db.Database())
-	tq.local = true
+	var count int
+	err := ts.DB().QueryRow("select count(*) from toots").Scan(&count)
+	assert.NoError(t, err)
+	fmt.Printf("Found %d toots\n", count)
+
+	tq := TQ(ts.DB())
+	// tq.local = true
+	// tq.only_media = true
 	res, err := tq.Execute()
 	assert.NoError(t, err)
-	assert.Equal(t, 0, len(res))
+	assert.Equal(t, 2, len(res))
 }

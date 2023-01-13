@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/contribsys/sparq"
-	"github.com/contribsys/sparq/db"
 	"github.com/contribsys/sparq/model"
 	"github.com/contribsys/sparq/oauth2"
 	"github.com/contribsys/sparq/web"
@@ -19,10 +18,8 @@ import (
 )
 
 func TestInstance(t *testing.T) {
-	stopper, err := db.TestDB("instance")
-	assert.NoError(t, err)
+	ts, stopper := testServer(t, "instance")
 	defer stopper()
-	ts := &testSvr{}
 	root := rootRouter(ts)
 	AddPublicEndpoints(ts, root.PathPrefix("/api/v1").Subrouter())
 
@@ -58,10 +55,10 @@ func TestInstance(t *testing.T) {
 		assert.Equal(t, 401, w.Code)
 		assert.Contains(t, w.Body.String(), "invalid_token")
 
-		assert.Equal(t, 0, oauthClientCount(t))
+		assert.Equal(t, 0, oauthClientCount(t, ts))
 		token, err := registerToken(t, ts)
 		assert.NoError(t, err)
-		assert.Equal(t, 1, oauthClientCount(t))
+		assert.Equal(t, 1, oauthClientCount(t, ts))
 
 		req = httptest.NewRequest("GET", "http://localhost.dev:9494/api/v1/apps/verify_credentials", nil)
 		w = httptest.NewRecorder()
@@ -93,7 +90,7 @@ func TestInstance(t *testing.T) {
 		assert.Equal(t, 400, w.Code)
 		assert.Contains(t, w.Body.String(), "")
 
-		beforeCount := oauthClientCount(t)
+		beforeCount := oauthClientCount(t, ts)
 		j := `{"client_name":"Pinafore",
 		 "redirect_uris":"https://pinafore.social/settings/instances/add",
 		 "scopes":"read write follow push",
@@ -111,16 +108,17 @@ func TestInstance(t *testing.T) {
 		err := json.Unmarshal(w.Body.Bytes(), &testy)
 		assert.NoError(t, err)
 
-		afterCount := oauthClientCount(t)
+		afterCount := oauthClientCount(t, ts)
 		assert.NotEqual(t, beforeCount, afterCount)
 	})
 }
 
 type testSvr struct {
+	db *sqlx.DB
 }
 
 func (ts *testSvr) DB() *sqlx.DB {
-	return db.Database()
+	return ts.db
 }
 
 func (ts *testSvr) Hostname() string {
@@ -135,16 +133,16 @@ func (ts *testSvr) Context() context.Context {
 	return context.Background()
 }
 
-func oauthClientCount(t *testing.T) int {
+func oauthClientCount(t *testing.T, ts sparq.Server) int {
 	var count int
-	err := db.Database().QueryRow("select count(*) from oauth_clients").Scan(&count)
+	err := ts.DB().QueryRow("select count(*) from oauth_clients").Scan(&count)
 	assert.NoError(t, err)
 	return count
 }
 
-func oauthTokenCount(t *testing.T) int {
+func oauthTokenCount(t *testing.T, ts sparq.Server) int {
 	var count int
-	err := db.Database().QueryRow("select count(*) from oauth_tokens").Scan(&count)
+	err := ts.DB().QueryRow("select count(*) from oauth_tokens").Scan(&count)
 	assert.NoError(t, err)
 	return count
 }

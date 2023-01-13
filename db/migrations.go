@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/contribsys/sparq"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"github.com/pressly/goose/v3"
 )
@@ -19,12 +20,12 @@ func init() {
 }
 
 // the latest migration version in the sqlite database on disk
-func getDatabaseVersion() (int64, error) {
+func getDatabaseVersion(dbx *sqlx.DB) (int64, error) {
 	return goose.GetDBVersion(dbx.DB)
 }
 
 // the latest migration version packed into this binary
-func getMigrationsVersion() (int64, error) {
+func getMigrationsVersion(dbx *sqlx.DB) (int64, error) {
 	maxInt := int64((1 << 63) - 1)
 	migs, err := goose.CollectMigrations("migrate", 0, maxInt)
 	if err != nil {
@@ -42,7 +43,7 @@ func getMigrationsVersion() (int64, error) {
 }
 
 func MigrateExec(args []string) error {
-	err := OpenDB(DatabaseOptions{
+	dbx, err := OpenDB(DatabaseOptions{
 		Filename:         "./sparq.db",
 		SkipVersionCheck: true,
 	})
@@ -50,6 +51,14 @@ func MigrateExec(args []string) error {
 		return errors.Wrap(err, "Unable to open database")
 	}
 
+	dbVer, err := getDatabaseVersion(dbx)
+	if err != nil {
+		return err
+	}
+	migVer, err := getMigrationsVersion(dbx)
+	if err != nil {
+		return err
+	}
 	if dbVer > migVer {
 		return errors.New(fmt.Sprintf("Your sparq %s database version %d is newer than this binary %d, are you using the wrong version?", sparq.Version, dbVer, migVer))
 	}
@@ -63,7 +72,7 @@ func MigrateExec(args []string) error {
 		if err := goose.Redo(dbx.DB, "migrate"); err != nil {
 			return errors.Wrap(err, "Unable to migrate database")
 		}
-		if err := Seed(); err != nil {
+		if err := Seed(dbx); err != nil {
 			return errors.Wrap(err, "Unable to seed database")
 		}
 	} else {

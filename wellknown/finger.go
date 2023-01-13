@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/db"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
@@ -97,8 +98,8 @@ func webfingerHandler(dbx *sqlx.DB) http.HandlerFunc {
 	}
 }
 
-func AddPublicEndpoints(root *mux.Router) {
-	root.HandleFunc("/.well-known/webfinger", webfingerHandler(db.Database()))
+func AddPublicEndpoints(s sparq.Server, root *mux.Router) {
+	root.HandleFunc("/.well-known/webfinger", webfingerHandler(s.DB()))
 	root.HandleFunc("/.well-known/nodeinfo", func(resp http.ResponseWriter, req *http.Request) {
 		resp.Header().Add("Content-Type", "application/json")
 		resp.Header().Add("Access-Control-Allow-Origin", "*")
@@ -112,7 +113,7 @@ func AddPublicEndpoints(root *mux.Router) {
 		resp.Header().Add("Cache-Control", "public, max-age=600")
 
 		var userCount int
-		err := db.Database().QueryRow("select count(*) from accounts").Scan(&userCount)
+		err := s.DB().QueryRow("select count(*) from accounts").Scan(&userCount)
 		if err != nil {
 			http.Error(resp, err.Error(), http.StatusInternalServerError)
 			return

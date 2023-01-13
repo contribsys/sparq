@@ -24,16 +24,22 @@ func runExec(args []string) {
 
 	_ = goose.SetDialect("sqlite3")
 	db.InstanceHostname = opts.Hostname
-	stopper, err := db.InitDB(opts.Hostname, false)
+	dbx, stopper, err := db.InitDB(opts.Hostname, false)
 	if err != nil {
 		util.Error("Unable to start Sparq", err)
 		return
 	}
 	defer stopper()
 
-	util.Infof("Running sqlite %s", db.SqliteVersion())
+	var ver string
+	err = dbx.QueryRow("select sqlite_version()").Scan(&ver)
+	if err != nil {
+		util.Error("Unable to query Sparq database", err)
+		return
+	}
+	util.Infof("Running sqlite %s", ver)
 
-	s, err := core.NewService(opts)
+	s, err := core.NewService(dbx, opts)
 	if err != nil {
 		util.Error("Unable to start Sparq", err)
 		return

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/contribsys/sparq/util"
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -13,38 +14,36 @@ var (
 	newUserInsert = `
 		insert into accounts (Id, Sfid, Nick, Email, FullName, RoleMask)
 		values (?, ?, ?, ?, ?, ?)`
-	newActorInsert = `
-		insert into actors (AccountId) values (?)`
 	newSecurityInsert = `
 		insert into account_securities (AccountId, PasswordHash, PublicKey, PrivateKey)
 		values (?, ?, ?, ?)`
 	newProfileInsert = `
 		insert into account_profiles (AccountId) values (?)`
-	newPostInsert = `
-		insert into posts (SID, URI, AuthorId, ActorId, InReplyTo, InReplyToAccountId, Summary, Content)
+	newTootInsert = `
+		insert into toots (SID, URI, AuthorId, ActorId, InReplyTo, InReplyToAccountId, Summary, Content)
 		values (?, ?, ?, ?, ?, ?, ?, ?)`
 )
 
-func Seed() error {
-	if err := createAdmin(); err != nil {
+func Seed(dbx *sqlx.DB) error {
+	if err := createAdmin(dbx); err != nil {
 		return err
 	}
-	if err := createPosts(); err != nil {
+	if err := createToots(dbx); err != nil {
 		return err
 	}
 	return nil
 }
 
-func createPosts() error {
-	if noRows("select * from posts limit 1") {
+func createToots(dbx *sqlx.DB) error {
+	if noRows(dbx, "select * from posts limit 1") {
 		uri := fmt.Sprintf("https://%s/@admin", InstanceHostname)
 
-		_, err := dbx.Exec(newPostInsert, "AABA", uri+"/status/AABA", 1, 1, nil, nil, "CW: Hello World",
+		_, err := dbx.Exec(newTootInsert, "AABA", uri+"/status/AABA", 1, 1, nil, nil, "CW: Hello World",
 			"This is a test toot!\nAnother line.")
 		if err != nil {
 			return errors.Wrap(err, "1")
 		}
-		_, err = dbx.Exec(newPostInsert, "AABB", uri+"/status/AABB", 1, 1, uri+"/status/AABA", 1,
+		_, err = dbx.Exec(newTootInsert, "AABB", uri+"/status/AABB", 1, 1, uri+"/status/AABA", 1,
 			"CW: Part 2", "This is a test reply!\nAnother line.")
 		if err != nil {
 			return errors.Wrap(err, "2")
@@ -53,15 +52,15 @@ func createPosts() error {
 	return nil
 }
 
-func noRows(query string, args ...any) bool {
+func noRows(dbx *sqlx.DB, query string, args ...any) bool {
 	result := map[string]interface{}{}
 	row := dbx.QueryRowx(query, args...)
 	err := row.MapScan(result)
 	return err == sql.ErrNoRows
 }
 
-func createAdmin() error {
-	if noRows("select * from accounts where id = ?", 1) {
+func createAdmin(dbx *sqlx.DB) error {
+	if noRows(dbx, "select * from accounts where id = ?", 1) {
 		_, err := dbx.Exec(newUserInsert, 1, "116672815607840768", "admin", "admin@"+InstanceHostname, "Sparq Admin", -1)
 		if err != nil {
 			return errors.Wrap(err, "create admin")

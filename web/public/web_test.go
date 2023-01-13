@@ -2,7 +2,6 @@ package public
 
 import (
 	"context"
-	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
@@ -17,13 +16,11 @@ import (
 )
 
 func TestPublicStatic(t *testing.T) {
-	stopper, err := db.TestDB("public")
-	assert.NoError(t, err)
+	ts, stopper := testServer(t, "public")
 	defer stopper()
 
 	r := mux.NewRouter()
-	svr := &testSvr{}
-	AddPublicEndpoints(svr, r)
+	AddPublicEndpoints(ts, r)
 
 	req := httptest.NewRequest("GET", "http://localhost.dev:9494/static/logo-sm.png", nil)
 	w := httptest.NewRecorder()
@@ -52,10 +49,8 @@ func TestPublicStatic(t *testing.T) {
 }
 
 func TestPublicLogin(t *testing.T) {
-	stopper, err := db.TestDB("public")
-	assert.NoError(t, err)
+	ts, stopper := testServer(t, "public")
 	defer stopper()
-	ts := &testSvr{}
 	root := rootRouter(ts)
 	AddPublicEndpoints(ts, root)
 
@@ -76,23 +71,12 @@ func TestPublicLogin(t *testing.T) {
 			"password": {"sparq123"},
 		}
 		req = httptest.NewRequest("POST", "http://localhost.dev:9494/login", strings.NewReader(payload.Encode()))
-		assert.NoError(t, err)
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		w = httptest.NewRecorder()
 		root.ServeHTTP(w, req)
 		assert.Equal(t, 302, w.Code)
 		assert.Contains(t, w.Header().Get("Location"), "/home")
 	})
-}
-
-func withQuery(query string, fn func(w *httptest.ResponseRecorder, req *http.Request)) {
-	req := httptest.NewRequest("GET", "http://localhost.dev:9494"+query, nil)
-	w := httptest.NewRecorder()
-	r := mux.NewRouter()
-	s := &testSvr{}
-	AddPublicEndpoints(s, r)
-	r.ServeHTTP(w, req)
-	fn(w, req)
 }
 
 func rootRouter(s sparq.Server) *mux.Router {
@@ -103,10 +87,11 @@ func rootRouter(s sparq.Server) *mux.Router {
 }
 
 type testSvr struct {
+	db *sqlx.DB
 }
 
 func (ts *testSvr) DB() *sqlx.DB {
-	return db.Database()
+	return ts.db
 }
 
 func (ts *testSvr) Hostname() string {
@@ -119,4 +104,12 @@ func (ts *testSvr) LogLevel() string {
 
 func (ts *testSvr) Context() context.Context {
 	return context.Background()
+}
+
+func testServer(t *testing.T, name string) (sparq.Server, func()) {
+	dbx, stopper, err := db.TestDB(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &testSvr{db: dbx}, stopper
 }

@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/db"
 	"github.com/stretchr/testify/assert"
 )
@@ -22,10 +23,9 @@ func jsonPayload(t *testing.T, w *httptest.ResponseRecorder) map[string]interfac
 }
 
 func TestAccounts(t *testing.T) {
-	stopper, err := db.TestDB("accounts")
-	assert.NoError(t, err)
+	ts, stopper := testServer(t, "accounts")
 	defer stopper()
-	ts := &testSvr{}
+
 	root := rootRouter(ts)
 	AddPublicEndpoints(ts, root.PathPrefix("/api/v1").Subrouter())
 
@@ -55,4 +55,12 @@ func TestAccounts(t *testing.T) {
 		assert.Contains(t, payload, "id")
 	})
 
+}
+
+func testServer(t *testing.T, name string) (sparq.Server, func()) {
+	dbx, stopper, err := db.TestDB(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &testSvr{db: dbx}, stopper
 }

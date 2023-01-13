@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/db"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
@@ -13,14 +14,12 @@ import (
 )
 
 func TestPublicOauth(t *testing.T) {
-	stopper, err := db.TestDB("oauth")
-	assert.NoError(t, err)
+	ts, stopper := testServer(t, "oauth")
 	defer stopper()
 
-	r := mux.NewRouter()
-	s := &testSvr{}
+	r := RootRouter(ts)
 	// AddPublicEndpoints(s, r)
-	IntegrateOauth(s, r)
+	IntegrateOauth(ts, r)
 
 	route(r, "/nosuch", func(w *httptest.ResponseRecorder, req *http.Request) {
 		assert.Equal(t, 404, w.Code)
@@ -40,12 +39,12 @@ func TestPublicOauth(t *testing.T) {
 	})
 
 	t.Run("with http redirect", func(t *testing.T) {
-		_, err = db.Database().Exec(`insert into oauth_clients
+		_, err := ts.DB().Exec(`insert into oauth_clients
 		(ClientId, Name, Secret, RedirectUris, Website, Scopes) values 
 		("93e60c83-3c57-42ac-abaf-be6bc7ad2e68", "Pinafore", "123456789abcdef", "http://localhost:4002/settings/instances/add", "http://localhost:4002", "read write follow push")`)
 		assert.NoError(t, err)
 
-		sos := &SqliteOauthStore{DB: db.Database()}
+		sos := &SqliteOauthStore{DB: ts.DB()}
 		ci, err := sos.GetByID(context.Background(), "93e60c83-3c57-42ac-abaf-be6bc7ad2e68")
 		assert.NoError(t, err)
 		assert.NotNil(t, ci)
@@ -54,7 +53,7 @@ func TestPublicOauth(t *testing.T) {
 		w := httptest.NewRecorder()
 		session, err := SessionStore.Get(req, "sparq-session")
 		assert.NoError(t, err)
-		session.Values["uid"] = 1
+		session.Values["uid"] = "1"
 		r.ServeHTTP(w, req)
 		assert.Equal(t, 200, w.Code)
 		assert.Contains(t, w.Body.String(), "Authorize Application?")
@@ -63,7 +62,7 @@ func TestPublicOauth(t *testing.T) {
 		w = httptest.NewRecorder()
 		session, err = SessionStore.Get(req, "sparq-session")
 		assert.NoError(t, err)
-		session.Values["uid"] = 1
+		session.Values["uid"] = "1"
 		session.Values["username"] = "admin"
 		r.ServeHTTP(w, req)
 		assert.Equal(t, 302, w.Code)
@@ -73,24 +72,24 @@ func TestPublicOauth(t *testing.T) {
 		w = httptest.NewRecorder()
 		session, err = SessionStore.Get(req, "sparq-session")
 		assert.NoError(t, err)
-		session.Values["uid"] = 1
+		session.Values["uid"] = "1"
 		session.Values["username"] = "admin"
 		r.ServeHTTP(w, req)
 		assert.Equal(t, 302, w.Code)
 		assert.Contains(t, w.Header().Get("Location"), "http://localhost:4002/settings/instances/add?error")
 		var count int
-		err = db.Database().QueryRow("select count(*) from oauth_clients").Scan(&count)
+		err = ts.DB().QueryRow("select count(*) from oauth_clients").Scan(&count)
 		assert.NoError(t, err)
 		assert.EqualValues(t, 0, count)
 	})
 
 	t.Run("with OOB redirect", func(t *testing.T) {
-		_, err = db.Database().Exec(`insert into oauth_clients
+		_, err := ts.DB().Exec(`insert into oauth_clients
 		(ClientId, Name, Secret, RedirectUris, Website, Scopes) values 
 		("93e60c83-3c57-42ac-abaf-be6bc7ad2e69", "Tut", "987654321abcdef", "urn:ietf:wg:oauth:2.0:oob", "http://localhost:4002", "read write follow")`)
 		assert.NoError(t, err)
 
-		sos := &SqliteOauthStore{DB: db.Database()}
+		sos := &SqliteOauthStore{DB: ts.DB()}
 		ci, err := sos.GetByID(context.Background(), "93e60c83-3c57-42ac-abaf-be6bc7ad2e69")
 		assert.NoError(t, err)
 		assert.NotNil(t, ci)
@@ -99,7 +98,7 @@ func TestPublicOauth(t *testing.T) {
 		w := httptest.NewRecorder()
 		session, err := SessionStore.Get(req, "sparq-session")
 		assert.NoError(t, err)
-		session.Values["uid"] = 1
+		session.Values["uid"] = "1"
 		r.ServeHTTP(w, req)
 		assert.Equal(t, 200, w.Code)
 		assert.Contains(t, w.Body.String(), "Authorize Application?")
@@ -108,7 +107,7 @@ func TestPublicOauth(t *testing.T) {
 		w = httptest.NewRecorder()
 		session, err = SessionStore.Get(req, "sparq-session")
 		assert.NoError(t, err)
-		session.Values["uid"] = 1
+		session.Values["uid"] = "1"
 		session.Values["username"] = "admin"
 		r.ServeHTTP(w, req)
 		assert.Equal(t, 200, w.Code)
@@ -124,11 +123,20 @@ func route(r *mux.Router, query string, fn func(w *httptest.ResponseRecorder, re
 	fn(w, req)
 }
 
+func testServer(t *testing.T, name string) (sparq.Server, func()) {
+	dbx, stopper, err := db.TestDB(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &testSvr{db: dbx}, stopper
+}
+
 type testSvr struct {
+	db *sqlx.DB
 }
 
 func (ts *testSvr) DB() *sqlx.DB {
-	return db.Database()
+	return ts.db
 }
 
 func (ts *testSvr) Hostname() string {

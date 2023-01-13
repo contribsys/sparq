@@ -7,7 +7,6 @@ import (
 	"text/template"
 
 	"github.com/contribsys/sparq"
-	"github.com/contribsys/sparq/db"
 	"github.com/contribsys/sparq/model"
 	"github.com/contribsys/sparq/util"
 	"github.com/contribsys/sparq/web"
@@ -104,65 +103,69 @@ var (
 `
 )
 
-func getAccountStatuses(w http.ResponseWriter, r *http.Request) {
-	sfid := mux.Vars(r)["sfid"]
-	rows, err := db.Database().Queryx(`
-	  select posts.* from posts
-		inner join actors on posts.authorid = actors.id
-		inner join accounts on accounts.id = actors.userid
-		where users.sfid = ?
-		order by posts.uri DESC
-		limit 50
-		`, sfid)
-	if err == sql.ErrNoRows {
-		httpError(w, err, http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		httpError(w, err, http.StatusInternalServerError)
-		return
-	}
-
-	results := []map[string]any{}
-	for rows.Next() {
-		rowdata := map[string]interface{}{}
-		err = rows.MapScan(rowdata)
+func getAccountStatuses(s sparq.Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		sfid := mux.Vars(r)["sfid"]
+		rows, err := s.DB().Queryx(`
+			select posts.* from posts
+			inner join actors on posts.authorid = actors.id
+			inner join accounts on accounts.id = actors.userid
+			where users.sfid = ?
+			order by posts.uri DESC
+			limit 50
+			`, sfid)
+		if err == sql.ErrNoRows {
+			httpError(w, err, http.StatusNotFound)
+			return
+		}
 		if err != nil {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
-		results = append(results, rowdata)
-	}
 
-	data, err := json.Marshal(results)
-	if err != nil {
-		httpError(w, err, http.StatusInternalServerError)
-		return
+		results := []map[string]any{}
+		for rows.Next() {
+			rowdata := map[string]interface{}{}
+			err = rows.MapScan(rowdata)
+			if err != nil {
+				httpError(w, err, http.StatusInternalServerError)
+				return
+			}
+			results = append(results, rowdata)
+		}
+
+		data, err := json.Marshal(results)
+		if err != nil {
+			httpError(w, err, http.StatusInternalServerError)
+			return
+		}
+		w.Header().Add("Content-Type", "application/json")
+		_, _ = w.Write(data)
 	}
-	w.Header().Add("Content-Type", "application/json")
-	_, _ = w.Write(data)
 }
 
-func getAccount(w http.ResponseWriter, r *http.Request) {
-	sfid := mux.Vars(r)["sfid"]
-	// fmt.Printf("Hello %s\n", sfid)
+func getAccount(s sparq.Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		sfid := mux.Vars(r)["sfid"]
+		// fmt.Printf("Hello %s\n", sfid)
 
-	userdata := map[string]interface{}{}
-	err := db.Database().QueryRowx("select * from users where sfid = ?", sfid).MapScan(userdata)
-	if err == sql.ErrNoRows {
-		httpError(w, err, http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		httpError(w, err, http.StatusInternalServerError)
-		return
-	}
+		userdata := map[string]interface{}{}
+		err := s.DB().QueryRowx("select * from users where sfid = ?", sfid).MapScan(userdata)
+		if err == sql.ErrNoRows {
+			httpError(w, err, http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			httpError(w, err, http.StatusInternalServerError)
+			return
+		}
 
-	data, err := json.Marshal(userdata)
-	if err != nil {
-		httpError(w, err, http.StatusInternalServerError)
-		return
+		data, err := json.Marshal(userdata)
+		if err != nil {
+			httpError(w, err, http.StatusInternalServerError)
+			return
+		}
+		w.Header().Add("Content-Type", "application/json")
+		_, _ = w.Write(data)
 	}
-	w.Header().Add("Content-Type", "application/json")
-	_, _ = w.Write(data)
 }

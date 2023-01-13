@@ -18,7 +18,7 @@ func BuildWeb(s *Service) *http.Server {
 	public.AddPublicEndpoints(s, root)
 	// s.FaktoryUI.Embed(root, "/faktory")
 	// s.AdminUI.Embed(root, "/admin")
-	wellknown.AddPublicEndpoints(root)
+	wellknown.AddPublicEndpoints(s, root)
 
 	ht := &http.Server{
 		Addr:        s.Binding,

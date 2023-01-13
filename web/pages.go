@@ -93,6 +93,7 @@ type PageData struct {
 	act    *model.Account
 	r      *http.Request
 	w      http.ResponseWriter
+	ctx    *WebCtx
 	Locale string
 	Custom any
 }
@@ -120,7 +121,8 @@ func (pd *PageData) CurrentAccount() *model.Account {
 	uid, ok := pd.Session().Values["uid"]
 	if ok {
 		var acct model.Account
-		err := db.Database().Get(&acct, `
+		dbx := Ctx(pd.r).svr.DB()
+		err := dbx.Get(&acct, `
 		select a.*, ap.* from accounts a
 		join account_profiles ap on ap.accountid = a.id
 		where a.id = ?`, uid)

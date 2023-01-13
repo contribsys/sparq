@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/contribsys/sparq/db"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,10 +27,8 @@ func TestTags(t *testing.T) {
 	}
 }
 func TestStatus(t *testing.T) {
-	stopper, err := db.TestDB("status")
-	assert.NoError(t, err)
+	ts, stopper := testServer(t, "status")
 	defer stopper()
-	ts := &testSvr{}
 	token, err := registerToken(t, ts)
 	assert.NoError(t, err)
 	root := rootRouter(ts)
