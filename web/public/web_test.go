@@ -98,6 +98,10 @@ func (ts *testSvr) Hostname() string {
 	return "localhost.dev"
 }
 
+func (ts *testSvr) MediaRoot() string {
+	return "./media"
+}
+
 func (ts *testSvr) LogLevel() string {
 	return "debug"
 }

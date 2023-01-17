@@ -15,6 +15,7 @@ var (
 )
 
 func AddPublicEndpoints(s sparq.Server, mux *mux.Router) {
+	mux.HandleFunc("/media", postMediaHandler(s))
 	mux.HandleFunc("/statuses", PostStatusHandler(s))
 	mux.HandleFunc("/statuses/{id}", getStatusHandler(s))
 	mux.HandleFunc("/custom_emojis", emptyHandler(s))

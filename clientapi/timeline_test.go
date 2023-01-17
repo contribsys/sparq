@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/contribsys/sparq/web"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestLocal(t *testing.T) {
-	ts, stopper := testServer(t, "timeline")
+	ts, stopper := web.NewTestServer(t, "timeline")
 	defer stopper()
 
 	var count int

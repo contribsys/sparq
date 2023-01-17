@@ -13,12 +13,11 @@ import (
 	"github.com/contribsys/sparq/model"
 	"github.com/contribsys/sparq/oauth2"
 	"github.com/contribsys/sparq/web"
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestInstance(t *testing.T) {
-	ts, stopper := testServer(t, "instance")
+	ts, stopper := web.NewTestServer(t, "instance")
 	defer stopper()
 	root := rootRouter(ts)
 	AddPublicEndpoints(ts, root.PathPrefix("/api/v1").Subrouter())
@@ -111,26 +110,6 @@ func TestInstance(t *testing.T) {
 		afterCount := oauthClientCount(t, ts)
 		assert.NotEqual(t, beforeCount, afterCount)
 	})
-}
-
-type testSvr struct {
-	db *sqlx.DB
-}
-
-func (ts *testSvr) DB() *sqlx.DB {
-	return ts.db
-}
-
-func (ts *testSvr) Hostname() string {
-	return "localhost.dev"
-}
-
-func (ts *testSvr) LogLevel() string {
-	return "debug"
-}
-
-func (ts *testSvr) Context() context.Context {
-	return context.Background()
 }
 
 func oauthClientCount(t *testing.T, ts sparq.Server) int {

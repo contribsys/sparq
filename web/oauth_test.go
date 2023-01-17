@@ -6,15 +6,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/contribsys/sparq"
-	"github.com/contribsys/sparq/db"
 	"github.com/gorilla/mux"
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestPublicOauth(t *testing.T) {
-	ts, stopper := testServer(t, "oauth")
+	ts, stopper := NewTestServer(t, "oauth")
 	defer stopper()
 
 	r := RootRouter(ts)
@@ -121,32 +118,4 @@ func route(r *mux.Router, query string, fn func(w *httptest.ResponseRecorder, re
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	fn(w, req)
-}
-
-func testServer(t *testing.T, name string) (sparq.Server, func()) {
-	dbx, stopper, err := db.TestDB(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return &testSvr{db: dbx}, stopper
-}
-
-type testSvr struct {
-	db *sqlx.DB
-}
-
-func (ts *testSvr) DB() *sqlx.DB {
-	return ts.db
-}
-
-func (ts *testSvr) Hostname() string {
-	return "localhost.dev"
-}
-
-func (ts *testSvr) LogLevel() string {
-	return "debug"
-}
-
-func (ts *testSvr) Context() context.Context {
-	return context.Background()
 }

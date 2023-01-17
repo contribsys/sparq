@@ -5,8 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/contribsys/sparq"
-	"github.com/contribsys/sparq/db"
+	"github.com/contribsys/sparq/web"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,7 +22,7 @@ func jsonPayload(t *testing.T, w *httptest.ResponseRecorder) map[string]interfac
 }
 
 func TestAccounts(t *testing.T) {
-	ts, stopper := testServer(t, "accounts")
+	ts, stopper := web.NewTestServer(t, "accounts")
 	defer stopper()
 
 	root := rootRouter(ts)
@@ -54,13 +53,4 @@ func TestAccounts(t *testing.T) {
 		assert.NotNil(t, payload)
 		assert.Contains(t, payload, "id")
 	})
-
-}
-
-func testServer(t *testing.T, name string) (sparq.Server, func()) {
-	dbx, stopper, err := db.TestDB(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return &testSvr{db: dbx}, stopper
 }

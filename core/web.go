@@ -2,6 +2,7 @@ package core
 
 import (
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/contribsys/sparq/clientapi"
@@ -10,8 +11,14 @@ import (
 	"github.com/contribsys/sparq/wellknown"
 )
 
+var ()
+
 func BuildWeb(s *Service) *http.Server {
 	root := web.RootRouter(s)
+
+	// media static files
+	root.PathPrefix("/media/").Handler(http.StripPrefix("/media", http.FileServer(http.FS(os.DirFS(s.MediaRoot())))))
+
 	web.IntegrateOauth(s, root)
 	apiv1 := root.PathPrefix("/api/v1").Subrouter()
 	clientapi.AddPublicEndpoints(s, apiv1)

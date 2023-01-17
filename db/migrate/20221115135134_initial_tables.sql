@@ -85,25 +85,6 @@ create table if not exists `actors` (
   SharedInbox string, -- "https://instance.domain/@username"
   foreign key (accountid) references accounts(id) on delete cascade
 );
-create table if not exists `toot_medias` (
-  Sid string not null,
-  ContentType string not null default "image/jpeg",
-  ThumbUri string not null default "/static/undefined.jpg",
-  Uri string not null default "/static/undefined.jpg",
-  BlurHash string,
-  Height integer,
-  Width integer,
-  Duration integer,
-  CreatedAt timestamp not null default current_timestamp,
-  foreign key (sid) references toots(sid) on delete cascade
-);
-create table if not exists `toot_tags` (
-  Sid string not null,
-  Tag string not null,
-  CreatedAt timestamp not null default current_timestamp,
-  foreign key (sid) references toots(sid) on delete cascade
-);
-create index idx_toot_tags_tag on toot_tags(tag);
 
 create table if not exists `toots` (
   sid string not null primary key,
@@ -134,6 +115,32 @@ create table if not exists `toots` (
   foreign key (BoostOfId) references Toots(id) on delete cascade,
   foreign key (CollectionId) references collections(id) on delete set null
 );
+
+create table if not exists `toot_medias` (
+  id integer primary key,
+  sid string, -- clients upload media before toot is created
+  accountid integer not null,
+  mimetype string not null default "image/jpeg",
+  uri string not null default "/static/undefined.jpg",
+  thumbmimetype string not null default "image/jpeg",
+  thumburi string not null default "/static/undefined.jpg",
+  meta string default "{}" not null,
+  description string default "",
+  blurhash string default "" not null,
+  height integer,
+  width integer,
+  duration integer,
+  createdat timestamp not null default current_timestamp,
+  foreign key (sid) references toots(sid) on delete cascade
+  foreign key (accountid) references accounts(id) on delete cascade
+);
+create table if not exists `toot_tags` (
+  Sid string not null,
+  Tag string not null,
+  CreatedAt timestamp not null default current_timestamp,
+  foreign key (sid) references toots(sid) on delete cascade
+);
+create index idx_toot_tags_tag on toot_tags(tag);
 
 -- +goose Down
 drop table toot_medias;

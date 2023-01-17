@@ -56,12 +56,20 @@ func (s *Service) Context() context.Context {
 	return s.ctx
 }
 
+func (s *Service) MediaRoot() string {
+	return s.StorageDirectory + "/media"
+}
+func (s *Service) Root() string {
+	return s.StorageDirectory
+}
+
 func NewService(db *sqlx.DB, opts Options) (*Service, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Service{
 		ctx:     ctx,
 		cancel:  cancel,
 		Options: opts,
+		db:      db,
 	}
 
 	js, _ := faktory.NewServer(faktory.Options{

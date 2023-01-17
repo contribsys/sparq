@@ -4,11 +4,13 @@ import (
 	"context"
 	"testing"
 
+	"github.com/contribsys/sparq/web"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestStreaming(t *testing.T) {
-	ts := &testSvr{}
+	ts, stopper := web.NewTestServer(t, "streaming")
+	defer stopper()
 	s := NewStreamer(ts)
 	assert.Contains(t, s.Metrics(), "streams")
 

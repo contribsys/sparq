@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/contribsys/sparq/web"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,7 +28,7 @@ func TestTags(t *testing.T) {
 	}
 }
 func TestStatus(t *testing.T) {
-	ts, stopper := testServer(t, "status")
+	ts, stopper := web.NewTestServer(t, "status")
 	defer stopper()
 	token, err := registerToken(t, ts)
 	assert.NoError(t, err)
