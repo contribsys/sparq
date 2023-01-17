@@ -1,22 +1,19 @@
 package public
 
 import (
-	"context"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 
 	"github.com/contribsys/sparq"
-	"github.com/contribsys/sparq/db"
 	"github.com/contribsys/sparq/web"
 	"github.com/gorilla/mux"
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestPublicStatic(t *testing.T) {
-	ts, stopper := testServer(t, "public")
+	ts, stopper := web.NewTestServer(t, "public")
 	defer stopper()
 
 	r := mux.NewRouter()
@@ -49,7 +46,7 @@ func TestPublicStatic(t *testing.T) {
 }
 
 func TestPublicLogin(t *testing.T) {
-	ts, stopper := testServer(t, "public")
+	ts, stopper := web.NewTestServer(t, "public")
 	defer stopper()
 	root := rootRouter(ts)
 	AddPublicEndpoints(ts, root)
@@ -84,36 +81,4 @@ func rootRouter(s sparq.Server) *mux.Router {
 	store := &web.SqliteOauthStore{DB: s.DB()}
 	root.Use(web.Auth(store))
 	return root
-}
-
-type testSvr struct {
-	db *sqlx.DB
-}
-
-func (ts *testSvr) DB() *sqlx.DB {
-	return ts.db
-}
-
-func (ts *testSvr) Hostname() string {
-	return "localhost.dev"
-}
-
-func (ts *testSvr) MediaRoot() string {
-	return "./media"
-}
-
-func (ts *testSvr) LogLevel() string {
-	return "debug"
-}
-
-func (ts *testSvr) Context() context.Context {
-	return context.Background()
-}
-
-func testServer(t *testing.T, name string) (sparq.Server, func()) {
-	dbx, stopper, err := db.TestDB(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return &testSvr{db: dbx}, stopper
 }
