@@ -9,12 +9,14 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"time"
 
 	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/model"
 	"github.com/contribsys/sparq/util/blurhash"
 	"github.com/contribsys/sparq/web"
+	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 )
 
@@ -75,6 +77,11 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 			return
 		}
 		media.MimeType = "image/jpeg"
+		fimg, _, err := image.Decode(newfile)
+		if err != nil {
+			httpError(w, err, http.StatusInternalServerError)
+			return
+		}
 
 		// 2. Generate thumbnail
 		newthumb, err := os.CreateTemp("", "thumb-*.jpg")
@@ -91,17 +98,20 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 		media.ThumbMimeType = "image/jpeg"
 
 		// 3. Grab metadata
-		img, _, err := image.Decode(newthumb)
+		timg, _, err := image.Decode(newthumb)
 		if err != nil {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
-		hash, err := blurhash.Encode(4, 3, img)
+		hash, err := blurhash.Encode(4, 3, timg)
 		if err != nil {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
 		media.Blurhash = hash
+		media.Meta = fmt.Sprintf(`{"original":{"width":%d,"height":%d},"small":{"width":%d,"height":%d}}`,
+			fimg.Bounds().Dx(), fimg.Bounds().Dy(),
+			timg.Bounds().Dx(), timg.Bounds().Dy())
 
 		now := time.Now().UTC()
 		dir := fmt.Sprintf("%s/%d/%d/%d", s.MediaRoot(), now.Year(), now.Month(), now.Day())
@@ -113,9 +123,9 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 
 		// 4. Save to DB
 		result, err := s.DB().ExecContext(r.Context(), `
-			insert into toot_medias (accountid, mimetype, thumbmimetype, description, blurhash, createdat)
-			 values (?, ?, ?, ?, ?, ?)`,
-			media.AccountId, media.MimeType, media.ThumbMimeType, media.Description, media.Blurhash, now)
+			insert into toot_medias (accountid, mimetype, thumbmimetype, description, blurhash, createdat, meta)
+			 values (?, ?, ?, ?, ?, ?, ?)`,
+			media.AccountId, media.MimeType, media.ThumbMimeType, media.Description, media.Blurhash, now, media.Meta)
 		if err != nil {
 			httpError(w, err, http.StatusInternalServerError)
 			return
@@ -149,12 +159,12 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 		}
 		media.Id = uint64(mid)
 		media.CreatedAt = now
-		media.Uri = media.PublicUri("full")
-		media.ThumbUri = media.PublicUri("thumb")
+		media.Path = media.DiskPath("full")
+		media.ThumbPath = media.DiskPath("thumb")
 
 		// 5. Push tmp files to URLs
 		_, err = s.DB().ExecContext(r.Context(), `
-			update toot_medias set uri = ?, thumburi = ? where id = ?`, media.PublicUri("full"), media.PublicUri("thumb"), mid)
+			update toot_medias set path = ?, thumbpath = ? where id = ?`, media.Path, media.ThumbPath, mid)
 		if err != nil {
 			httpError(w, err, http.StatusInternalServerError)
 			return
@@ -162,7 +172,7 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 
 		w.Header().Add("Content-Type", "application/json")
 		enc := json.NewEncoder(w)
-		err = enc.Encode(media)
+		err = enc.Encode(toAttachmentMap(media))
 		if err != nil {
 			httpError(w, err, http.StatusInternalServerError)
 			return
@@ -190,4 +200,51 @@ func run(command string, args ...string) (string, error) {
 		return "", errors.Wrap(err, fmt.Sprintf("Unable to process media: '%s' %v", out, args))
 	}
 	return string(out), nil
+}
+
+func getMediaAttachmentHandler(s sparq.Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := web.Ctx(r)
+		aid := ctx.CurrentUserID
+		if aid == web.Anonymous {
+			httpError(w, errors.New("Unauthorized"), http.StatusUnauthorized)
+			return
+		}
+
+		mid := mux.Vars(r)["id"]
+		var media model.TootMedia
+
+		err := s.DB().Get(&media, "select * from toot_medias where id = ?", mid)
+		if err != nil {
+			httpError(w, err, http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Add("Content-Type", "application/json")
+		enc := json.NewEncoder(w)
+		err = enc.Encode(toAttachmentMap(&media))
+		if err != nil {
+			httpError(w, err, http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+func toAttachmentMap(media *model.TootMedia) map[string]any {
+	attach := map[string]any{}
+	meta := map[string]any{}
+	err := json.Unmarshal([]byte(media.Meta), &meta)
+	if err == nil {
+		attach["meta"] = meta
+	}
+	attach["id"] = strconv.FormatUint(media.Id, 10)
+	attach["url"] = media.PublicUri("full")
+	attach["path"] = media.DiskPath("full")
+	attach["preview_url"] = media.PublicUri("thumb")
+	attach["preview_path"] = media.DiskPath("thumb")
+	attach["type"] = media.MimeType
+	attach["preview_type"] = media.ThumbMimeType
+	attach["description"] = media.Description
+	attach["blurhash"] = media.Blurhash
+	return attach
 }

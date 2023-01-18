@@ -28,6 +28,7 @@ func TestMediaUpload(t *testing.T) {
 		})
 		assert.NoError(t, err)
 
+		// post a new image
 		req := httptest.NewRequest("POST", "http://localhost.dev:9494/api/v1/media", bytes.NewReader(buf.Bytes()))
 		req.Header.Set("Content-Type", wr.FormDataContentType())
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -39,21 +40,41 @@ func TestMediaUpload(t *testing.T) {
 		assert.Equal(t, 200, w.Code)
 		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 
+		// verify the JSON response
 		var testy map[string]interface{}
 		err = json.Unmarshal(w.Body.Bytes(), &testy)
 		assert.NoError(t, err)
 		assert.NotNil(t, testy)
 
-		assert.NotNil(t, testy["url"])
-		u := testy["url"].(string)
+		// verify the normalized image files exist on disk
+		assert.NotNil(t, testy["path"])
+		u := testy["path"].(string)
 		assert.FileExists(t, ts.Root()+u)
-		assert.FileExists(t, ts.Root()+testy["preview_url"].(string))
+		assert.FileExists(t, ts.Root()+testy["preview_path"].(string))
 
+		// verify we can now serve that image
 		req = httptest.NewRequest("GET", "http://localhost.dev:9494"+u, nil)
 		w = httptest.NewRecorder()
 		root.ServeHTTP(w, req)
 		assert.Equal(t, 200, w.Code)
 		assert.Equal(t, "image/jpeg", w.Header().Get("Content-Type"))
 		assert.Equal(t, "114123", w.Header().Get("Content-Length"))
+
+		assert.NotNil(t, testy["id"])
+		aid := testy["id"].(string)
+		// verify we can get the attachment object for the image
+		req = httptest.NewRequest("GET", "http://localhost.dev:9494/api/v1/media/"+aid, nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Accepts", "application/json")
+		w = httptest.NewRecorder()
+		root.ServeHTTP(w, req)
+		assert.Equal(t, 200, w.Code)
+		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+		// fmt.Println(w.Body.String())
+
+		var att map[string]interface{}
+		err = json.Unmarshal(w.Body.Bytes(), &att)
+		assert.NoError(t, err)
+		assert.NotNil(t, att)
 	})
 }

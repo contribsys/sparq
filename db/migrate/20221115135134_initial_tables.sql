@@ -118,18 +118,15 @@ create table if not exists `toots` (
 
 create table if not exists `toot_medias` (
   id integer primary key,
-  sid string, -- clients upload media before toot is created
+  sid string not null default "", -- clients upload media before toot is created
   accountid integer not null,
   mimetype string not null default "image/jpeg",
-  uri string not null default "/static/undefined.jpg",
+  path string not null default "/static/undefined.jpg",
   thumbmimetype string not null default "image/jpeg",
-  thumburi string not null default "/static/undefined.jpg",
+  thumbpath string not null default "/static/undefined.jpg",
   meta string default "{}" not null,
   description string default "",
   blurhash string default "" not null,
-  height integer,
-  width integer,
-  duration integer,
   createdat timestamp not null default current_timestamp,
   foreign key (sid) references toots(sid) on delete cascade
   foreign key (accountid) references accounts(id) on delete cascade

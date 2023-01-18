@@ -3,6 +3,8 @@ package model
 import (
 	"fmt"
 	"time"
+
+	"github.com/contribsys/sparq/db"
 )
 
 type Toot struct {
@@ -93,28 +95,25 @@ func FromVis(value PostVisibility) string {
 	}
 */
 type TootMedia struct {
-	Id        uint64 `json:"id"`
-	Sid       string `json:"sid"`
-	AccountId string
-
-	MimeType string `json:"type"`
-	Uri      string `json:"url"`
-
-	ThumbMimeType string `json:"preview_type"`
-	ThumbUri      string `json:"preview_url"`
-
-	Meta        string `json:"meta"`
-	Description string `json:"description"`
-	Blurhash    string `json:"blurhash"`
-	CreatedAt   time.Time
+	Id            uint64
+	Sid           string
+	AccountId     string
+	MimeType      string
+	Path          string
+	ThumbMimeType string
+	ThumbPath     string
+	Meta          string
+	Description   string
+	Blurhash      string
+	CreatedAt     time.Time
 }
 
 func (tm *TootMedia) DiskPath(variant string) string {
 	c := tm.CreatedAt
-	return fmt.Sprintf("%d/%d/%d/%s-%s.jpg", c.Year(), c.Month(), c.Day(), variant, tm.AccountId)
+	return fmt.Sprintf("/media/%d/%d/%d/%s-%s.jpg", c.Year(), c.Month(), c.Day(), variant, tm.AccountId)
 }
 
 func (tm *TootMedia) PublicUri(variant string) string {
 	c := tm.CreatedAt
-	return fmt.Sprintf("/media/%d/%d/%d/%s-%s.jpg", c.Year(), c.Month(), c.Day(), variant, tm.AccountId)
+	return fmt.Sprintf("https://%s/media/%d/%d/%d/%s-%s.jpg", db.InstanceHostname, c.Year(), c.Month(), c.Day(), variant, tm.AccountId)
 }
