@@ -21,7 +21,7 @@ func HttpError(w http.ResponseWriter, err error, code int) {
 	for _, f := range er.(stackTracer).StackTrace() {
 		build.WriteString(fmt.Sprintf("\n%+v", f))
 	}
-	util.Warnf(build.String())
+	util.Infof(build.String())
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(code)

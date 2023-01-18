@@ -3,6 +3,7 @@ package clientapi
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -39,6 +40,7 @@ func TestMediaUpload(t *testing.T) {
 
 		assert.Equal(t, 200, w.Code)
 		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+		fmt.Println(w.Body.String())
 
 		// verify the JSON response
 		var testy map[string]interface{}
@@ -50,7 +52,15 @@ func TestMediaUpload(t *testing.T) {
 		assert.NotNil(t, testy["path"])
 		u := testy["path"].(string)
 		assert.FileExists(t, ts.Root()+u)
-		assert.FileExists(t, ts.Root()+testy["preview_path"].(string))
+		st, err := os.Stat(ts.Root() + u)
+		assert.NoError(t, err)
+		assert.EqualValues(t, 114123, st.Size())
+
+		p := testy["preview_path"].(string)
+		assert.FileExists(t, ts.Root()+p)
+		st, err = os.Stat(ts.Root() + p)
+		assert.NoError(t, err)
+		assert.Greater(t, st.Size(), int64(0))
 
 		// verify we can now serve that image
 		req = httptest.NewRequest("GET", "http://localhost.dev:9494"+u, nil)

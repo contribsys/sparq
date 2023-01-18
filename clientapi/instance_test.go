@@ -143,7 +143,7 @@ func registerToken(t *testing.T, s sparq.Server) (string, error) {
 	assert.NoError(t, err)
 	ti := &model.OauthToken{
 		ClientId:        cid,
-		UserId:          1,
+		AccountId:       1,
 		RedirectUri:     "https://example.com/oauth-client/add",
 		Scope:           "read write follow push",
 		Access:          token,

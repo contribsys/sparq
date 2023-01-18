@@ -53,7 +53,7 @@ func (scs *SqliteOauthStore) Delete(ctx context.Context, id string) error {
 func (scs *SqliteOauthStore) Create(ctx context.Context, info oauth2.TokenInfo) error {
 	// fmt.Printf("Created OAuth token: %+v\n", info)
 	_, err := scs.DB.ExecContext(ctx, `INSERT INTO oauth_tokens (
-			ClientId, UserId, RedirectUri, Scope, CodeChallenge,
+			ClientId, AccountId, RedirectUri, Scope, CodeChallenge,
 			Code, CodeCreatedAt, CodeExpiresIn,
 			Access, AccessCreatedAt, AccessExpiresIn,
 			Refresh, RefreshCreatedAt, RefreshExpiresIn)
@@ -230,6 +230,8 @@ func IntegrateOauth(s sparq.Server, root *mux.Router) *SqliteOauthStore {
 		uid := session.Values["uid"]
 		return fmt.Sprint(uid), nil
 	})
+
+	root.Use(Auth(store))
 	return store
 }
 

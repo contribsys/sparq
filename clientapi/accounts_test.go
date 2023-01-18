@@ -42,6 +42,7 @@ func TestAccounts(t *testing.T) {
 
 		token, err := registerToken(t, ts)
 		assert.NoError(t, err)
+		assert.NotEmpty(t, token)
 
 		req = httptest.NewRequest("GET", "http://localhost.dev:9494/api/v1/accounts/verify_credentials", nil)
 		req.Header.Add("Authorization", "Bearer "+token)

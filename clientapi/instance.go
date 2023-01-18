@@ -88,7 +88,7 @@ func appsHandler(svr sparq.Server) http.HandlerFunc {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
-		w.Header().Add("Content-Type", "application/json; charset=utf-8")
+		w.Header().Add("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(b)
 	}
@@ -105,9 +105,8 @@ func createOauthClient(svr sparq.Server, hash map[string]string) (map[string]int
 
 	// save new OAuth2 application record with client_id and client_secret
 	_, err = svr.DB().ExecContext(context.Background(), `insert into oauth_clients (
-	Name, ClientId, Secret, RedirectUris, Scopes, Website) values (
-		?, ?, ?, ?, ?, ?
-	)`, hash["client_name"], clientId, clientSecret,
+		Name, ClientId, Secret, RedirectUris, Scopes, Website) values (
+		?, ?, ?, ?, ?, ?)`, hash["client_name"], clientId, clientSecret,
 		hash["redirect_uris"], hash["scopes"], hash["website"])
 	if err != nil {
 		return nil, errors.Wrap(err, "oauth_client create")

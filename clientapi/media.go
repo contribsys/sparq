@@ -6,6 +6,7 @@ import (
 	"image"
 	_ "image/jpeg"
 	"io"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -45,10 +46,6 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 			httpError(w, err, http.StatusBadRequest)
 			return
 		}
-		media := &model.TootMedia{
-			AccountId:   aid,
-			Description: r.Form.Get("description"),
-		}
 
 		// 0. Save original media to disk
 		origfile, err := os.CreateTemp("", "orig-*")
@@ -76,10 +73,15 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
-		media.MimeType = "image/jpeg"
+
 		fimg, _, err := image.Decode(newfile)
 		if err != nil {
 			httpError(w, err, http.StatusInternalServerError)
+			return
+		}
+		_, err = newfile.Seek(0, 0)
+		if err != nil {
+			httpError(w, err, http.StatusBadRequest)
 			return
 		}
 
@@ -95,7 +97,6 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
-		media.ThumbMimeType = "image/jpeg"
 
 		// 3. Grab metadata
 		timg, _, err := image.Decode(newthumb)
@@ -108,7 +109,20 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
+		_, err = newthumb.Seek(0, 0)
+		if err != nil {
+			httpError(w, err, http.StatusBadRequest)
+			return
+		}
+
+		media := &model.TootMedia{
+			AccountId:   aid,
+			Description: r.Form.Get("description"),
+		}
+		media.MimeType = "image/jpeg"
+		media.ThumbMimeType = "image/jpeg"
 		media.Blurhash = hash
+		media.Salt = strconv.FormatUint(uint64(rand.Uint32()), 16)
 		media.Meta = fmt.Sprintf(`{"original":{"width":%d,"height":%d},"small":{"width":%d,"height":%d}}`,
 			fimg.Bounds().Dx(), fimg.Bounds().Dy(),
 			timg.Bounds().Dx(), timg.Bounds().Dy())
@@ -123,9 +137,9 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 
 		// 4. Save to DB
 		result, err := s.DB().ExecContext(r.Context(), `
-			insert into toot_medias (accountid, mimetype, thumbmimetype, description, blurhash, createdat, meta)
-			 values (?, ?, ?, ?, ?, ?, ?)`,
-			media.AccountId, media.MimeType, media.ThumbMimeType, media.Description, media.Blurhash, now, media.Meta)
+			insert into toot_medias (accountid, mimetype, thumbmimetype, description, blurhash, createdat, meta, salt)
+			 values (?, ?, ?, ?, ?, ?, ?, ?) returning id`,
+			media.AccountId, media.MimeType, media.ThumbMimeType, media.Description, media.Blurhash, now, media.Meta, media.Salt)
 		if err != nil {
 			httpError(w, err, http.StatusInternalServerError)
 			return
@@ -136,23 +150,41 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 			return
 		}
 
-		full, err := os.Create(fmt.Sprintf("%s/full-%d.jpg", dir, mid))
+		full, err := os.Create(fmt.Sprintf("%s/full-%s.jpg", dir, media.Salt))
 		if err != nil {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
-		_, err = io.Copy(full, newfile)
+		cnt, err := io.Copy(full, newfile)
+		if err != nil {
+			httpError(w, err, http.StatusInternalServerError)
+			return
+		}
+		if cnt == 0 {
+			httpError(w, errors.New("Bad original media copy"), 500)
+			return
+		}
+		err = full.Close()
 		if err != nil {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
 
-		thumb, err := os.Create(fmt.Sprintf("%s/thumb-%d.jpg", dir, mid))
+		thumb, err := os.Create(fmt.Sprintf("%s/thumb-%s.jpg", dir, media.Salt))
 		if err != nil {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
-		_, err = io.Copy(thumb, newthumb)
+		cnt, err = io.Copy(thumb, newthumb)
+		if err != nil {
+			httpError(w, err, http.StatusInternalServerError)
+			return
+		}
+		if cnt == 0 {
+			httpError(w, errors.New("Bad thumbnail media copy"), 500)
+			return
+		}
+		err = thumb.Close()
 		if err != nil {
 			httpError(w, err, http.StatusInternalServerError)
 			return
@@ -246,5 +278,6 @@ func toAttachmentMap(media *model.TootMedia) map[string]any {
 	attach["preview_type"] = media.ThumbMimeType
 	attach["description"] = media.Description
 	attach["blurhash"] = media.Blurhash
+	attach["salt"] = media.Salt
 	return attach
 }

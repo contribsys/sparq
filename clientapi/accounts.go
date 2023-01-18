@@ -47,7 +47,7 @@ func verifyCredentialsHandler(s sparq.Server) http.HandlerFunc {
 		err := s.DB().Get(&acct, `
 		  select a.*, ap.* from accounts a
 		  join account_profiles ap on a.id = ap.accountid 
-		  join oauth_tokens ot on a.id = ot.userid 
+		  join oauth_tokens ot on a.id = ot.accountid 
 			where ot.access = ?`, token)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {

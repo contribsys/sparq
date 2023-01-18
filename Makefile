@@ -24,6 +24,9 @@ db:
 pdb:
 	sqlite3 sparq.social.contribsys.com.db
 
+pclean:
+	rm sparq.social.contribsys.com.db ~/Library/Application\ Support/tut/accounts.toml
+
 up:
 	go run ./cmd/sparq migrate
 

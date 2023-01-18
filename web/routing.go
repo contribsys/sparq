@@ -46,7 +46,7 @@ func DebugLog(pass http.Handler) http.Handler {
 					return
 				}
 			}
-			data, _ := httputil.DumpRequest(r, r.Method == "POST")
+			data, _ := httputil.DumpRequest(r, false) // r.Method == "POST")
 			os.Stdout.Write(data)
 			if r.Method == "POST" {
 				os.Stdout.WriteString("\n\n")

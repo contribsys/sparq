@@ -25,8 +25,8 @@ var (
 // this is the core data structure which is passed along with each web request
 type WebCtx struct {
 	BearerCode    string
-	CurrentUserID string
 	LangCode      string
+	CurrentUserID string
 
 	clientApp *model.OauthClient
 	svr       sparq.Server
@@ -52,10 +52,9 @@ func EstablishContext(svr sparq.Server) func(http.Handler) http.Handler {
 	return func(pass http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			webctx := &WebCtx{
-				BearerCode:    bearerCode(r),
-				LangCode:      langCookie(r),
-				CurrentUserID: IsLoggedIn(r),
-				svr:           svr,
+				BearerCode: bearerCode(r),
+				LangCode:   langCookie(r),
+				svr:        svr,
 			}
 
 			pass.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), HelperKey, webctx)))

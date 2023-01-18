@@ -98,6 +98,7 @@ type TootMedia struct {
 	Id            uint64
 	Sid           string
 	AccountId     string
+	Salt          string
 	MimeType      string
 	Path          string
 	ThumbMimeType string
@@ -110,10 +111,10 @@ type TootMedia struct {
 
 func (tm *TootMedia) DiskPath(variant string) string {
 	c := tm.CreatedAt
-	return fmt.Sprintf("/media/%d/%d/%d/%s-%s.jpg", c.Year(), c.Month(), c.Day(), variant, tm.AccountId)
+	return fmt.Sprintf("/media/%d/%d/%d/%s-%s.jpg", c.Year(), c.Month(), c.Day(), variant, tm.Salt)
 }
 
 func (tm *TootMedia) PublicUri(variant string) string {
 	c := tm.CreatedAt
-	return fmt.Sprintf("https://%s/media/%d/%d/%d/%s-%s.jpg", db.InstanceHostname, c.Year(), c.Month(), c.Day(), variant, tm.AccountId)
+	return fmt.Sprintf("https://%s/media/%d/%d/%d/%s-%s.jpg", db.InstanceHostname, c.Year(), c.Month(), c.Day(), variant, tm.Salt)
 }

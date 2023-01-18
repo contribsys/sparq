@@ -96,6 +96,7 @@ func PostStatusHandler(svr sparq.Server) http.HandlerFunc {
 			httpError(w, errors.New("Unauthorized"), http.StatusUnauthorized)
 			return
 		}
+		fmt.Printf("%s %+v\n", aid, r.Form)
 
 		status := &Status{
 			AuthorID:     aid,
@@ -110,12 +111,15 @@ func PostStatusHandler(svr sparq.Server) http.HandlerFunc {
 		if rto != "" {
 			status.InReplyTo = &rto
 		}
-		if status.Content == "" {
-			httpError(w, errors.New("No content!"), 400)
+		medias := r.Form["media_ids[]"]
+		if status.Content == "" && len(medias) == 0 {
+			httpError(w, errors.New("Please enter a message"), 400)
 			return
 		}
 
-		if r.Form.Get("poll[expires_in]") != "" {
+		if len(medias) > 0 {
+			// media and poll are mutually exclusive
+		} else if r.Form.Get("poll[expires_in]") != "" {
 			expy, err := strconv.Atoi(r.Form.Get("poll[expires_in]"))
 			if err != nil {
 				httpError(w, err, 401)
@@ -162,7 +166,7 @@ func PostStatusHandler(svr sparq.Server) http.HandlerFunc {
 		dupeDetector[ikey] = time.Now()
 		defer dupeCleaner()
 
-		post, err := saveStatus(svr, r, status)
+		post, err := saveStatus(svr, r, status, medias)
 		if err != nil {
 			httpError(w, err, http.StatusInternalServerError)
 			return
@@ -211,7 +215,7 @@ func cleanDupeMap() {
 	}
 }
 
-func saveStatus(svr sparq.Server, r *http.Request, status *Status) (*model.Toot, error) {
+func saveStatus(svr sparq.Server, r *http.Request, status *Status, medias []string) (*model.Toot, error) {
 	sid := model.Snowflakes.NextSID()
 	p := &model.Toot{
 		Sid:        sid,
@@ -252,6 +256,19 @@ func saveStatus(svr sparq.Server, r *http.Request, status *Status) (*model.Toot,
 	if err != nil {
 		_ = tx.Rollback()
 		return nil, err
+	}
+	if len(medias) > 0 {
+		query, args, err := sqlx.In(`update toot_medias set sid = ? where id in (?)`, p.Sid, medias)
+		if err != nil {
+			_ = tx.Rollback()
+			return nil, errors.Wrap(err, "medias")
+		}
+		query = svr.DB().Rebind(query)
+		_, err = tx.ExecContext(r.Context(), query, args...)
+		if err != nil {
+			_ = tx.Rollback()
+			return nil, errors.Wrap(err, "media exec")
+		}
 	}
 	err = saveTags(r.Context(), tx, p)
 	if err != nil {

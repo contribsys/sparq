@@ -19,15 +19,15 @@ create table if not exists `oauth_clients` (
   Secret         string not null,
   RedirectUris   string not null,
   Website        string not null,
-  UserId         integer,
+  AccountId      integer not null default 0,
   Scopes         string not null default "read",
   CreatedAt      timestamp not null default current_timestamp,
   unique (ClientId),
-  foreign key (UserId) references accounts(id) on delete cascade 
+  foreign key (AccountId) references accounts(id) on delete cascade 
 );
 create table if not exists `oauth_tokens` (
 	ClientId            string not null,
-	UserId              integer not null, 
+	AccountId           integer not null, 
 	RedirectUri         string not null, 
 	Scope               string not null, 
 	Code                string not null, 
@@ -41,7 +41,7 @@ create table if not exists `oauth_tokens` (
 	RefreshCreatedAt     timestamp,
 	RefreshExpiresIn    integer,
   CreatedAt           timestamp not null default current_timestamp,
-  foreign key (UserId) references accounts(id) on delete cascade 
+  foreign key (AccountId) references accounts(id) on delete cascade 
   foreign key (ClientId) references oauth_clients(ClientId) on delete cascade 
 );
 create index idx_oauth_tokens_code on oauth_tokens(code);
@@ -120,6 +120,7 @@ create table if not exists `toot_medias` (
   id integer primary key,
   sid string not null default "", -- clients upload media before toot is created
   accountid integer not null,
+  salt integer not null,
   mimetype string not null default "image/jpeg",
   path string not null default "/static/undefined.jpg",
   thumbmimetype string not null default "image/jpeg",

@@ -15,7 +15,7 @@ type OauthClient struct {
 	Secret       string    `db:"Secret" json:"client_secret"`
 	RedirectUris string    `db:"RedirectUris" json:"redirect_uri"`
 	Website      string    `db:"Website" json:"website"`
-	UserId       *uint64   `db:"UserId"`
+	AccountId    uint64    `db:"AccountId"`
 	Scopes       string    `db:"Scopes"`
 	CreatedAt    time.Time `db:"CreatedAt"`
 }
@@ -30,12 +30,12 @@ func (x *OauthClient) GetDomain() string {
 	return x.Website
 }
 func (x *OauthClient) GetUserID() string {
-	return fmt.Sprint(x.UserId)
+	return fmt.Sprint(x.AccountId)
 }
 
 type OauthToken struct {
 	ClientId            string        `db:"ClientId"`
-	UserId              int64         `db:"UserId"`
+	AccountId           uint64        `db:"AccountId"`
 	RedirectUri         string        `db:"RedirectUri"`
 	Scope               string        `db:"Scope"`
 	Code                string        `db:"Code"`
@@ -65,15 +65,15 @@ func (ot *OauthToken) SetClientID(ci string) {
 }
 
 func (ot *OauthToken) GetUserID() string {
-	return fmt.Sprint(ot.UserId)
+	return fmt.Sprint(ot.AccountId)
 }
 
 func (ot *OauthToken) SetUserID(ui string) {
-	uid, err := strconv.ParseInt(ui, 10, 64)
+	uid, err := strconv.ParseUint(ui, 10, 64)
 	if err != nil {
 		panic("Unable to parse UserID: " + ui)
 	}
-	ot.UserId = uid
+	ot.AccountId = uid
 }
 
 func (ot *OauthToken) GetRedirectURI() string {

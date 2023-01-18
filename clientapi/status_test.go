@@ -72,7 +72,7 @@ func TestStatus(t *testing.T) {
 		w := httptest.NewRecorder()
 		root.ServeHTTP(w, req)
 		assert.Equal(t, 400, w.Code)
-		assert.Contains(t, w.Body.String(), `No content`)
+		assert.Contains(t, w.Body.String(), `Please enter`)
 	})
 
 	t.Run("GetStatus", func(t *testing.T) {
