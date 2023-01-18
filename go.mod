@@ -5,7 +5,6 @@ go 1.19
 require (
 	github.com/Masterminds/squirrel v1.5.3
 	github.com/go-redis/redis/v9 v9.0.0-rc.1
-	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/sessions v1.2.1
 	github.com/jmoiron/sqlx v1.3.5
