@@ -49,5 +49,3 @@ require (
 	modernc.org/mathutil v1.5.0 // indirect
 	modernc.org/memory v1.4.0 // indirect
 )
-
-replace github.com/contribsys/faktory => ../github.com/contribsys/faktory
