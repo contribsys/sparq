@@ -13,7 +13,7 @@ const (
 )
 
 var (
-	ServerHeader = fmt.Sprintf("%s v%s; contribsys.com", Name, Version)
+	ServerHeader = fmt.Sprintf("%s v%s; github.com/contribsys/sparq", Name, Version)
 )
 
 type PerformFunc func(ctx context.Context, args ...interface{}) error

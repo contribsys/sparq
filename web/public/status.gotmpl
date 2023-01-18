@@ -1,7 +1,35 @@
 {{define "page"}}
 <div class="row">
   <div class="col">
-    {{index .Custom "content" }}
+    <p>
+      {{index .Custom "content" }}
+    </p>
   </div>
 </div>
+
+
+{{ if ne 0 (index .Custom "tags" | len) }}
+<h1>Tags</h1>
+<div class="row">
+  <div class="col">
+    <p>
+      Tags: {{ range (index .Custom "tags") }}{{ index . "name" }} {{end}}
+    </p>
+  </div>
+</div>
+{{ end }}
+
+{{ if ne 0 (index .Custom "media_attachments" | len) }}
+  <h1>Media</h1>
+  <div class="row">
+  {{ range $index, $element := index .Custom "media_attachments" }}
+    <div class="col">
+      <a href="{{ index $element "url" }}">
+        <img alt="{{ index $element "description" }}" src="{{ index $element "preview_url" }}" />
+      </a>
+    </div>
+  {{ end }}
+  </div>
+{{ end }}
+
 {{end}}

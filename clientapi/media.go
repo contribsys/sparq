@@ -15,6 +15,7 @@ import (
 
 	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/model"
+	"github.com/contribsys/sparq/util"
 	"github.com/contribsys/sparq/util/blurhash"
 	"github.com/contribsys/sparq/web"
 	"github.com/gorilla/mux"
@@ -28,11 +29,6 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 			httpError(w, errors.New("POST only"), http.StatusBadRequest)
 			return
 		}
-		err := r.ParseMultipartForm(32 << 20) // 32 MB
-		if err != nil {
-			httpError(w, err, http.StatusBadRequest)
-			return
-		}
 
 		ctx := web.Ctx(r)
 		aid := ctx.CurrentUserID
@@ -41,11 +37,16 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 			return
 		}
 
+		start := time.Now()
+		salt := strconv.FormatUint(uint64(rand.Uint32()), 16)
+		util.Debugf("[%s] Starting media creation for account %s", salt, aid)
+
 		ffile, _, err := r.FormFile("file")
 		if err != nil {
 			httpError(w, err, http.StatusBadRequest)
 			return
 		}
+		util.Debugf("[%s] Parse request: %v", salt, time.Since(start))
 
 		// 0. Save original media to disk
 		origfile, err := os.CreateTemp("", "orig-*")
@@ -59,6 +60,7 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 			return
 		}
 		defer os.Remove(origfile.Name())
+		util.Debugf("[%s] Persist media: %v", salt, time.Since(start))
 
 		// Media normalization
 		// 1. Convert original to optimized JPG
@@ -73,6 +75,7 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
+		util.Debugf("[%s] Normalize media: %v", salt, time.Since(start))
 
 		fimg, _, err := image.Decode(newfile)
 		if err != nil {
@@ -97,6 +100,7 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
+		util.Debugf("[%s] Generate thumb: %v", salt, time.Since(start))
 
 		// 3. Grab metadata
 		timg, _, err := image.Decode(newthumb)
@@ -122,7 +126,7 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 		media.MimeType = "image/jpeg"
 		media.ThumbMimeType = "image/jpeg"
 		media.Blurhash = hash
-		media.Salt = strconv.FormatUint(uint64(rand.Uint32()), 16)
+		media.Salt = salt
 		media.Meta = fmt.Sprintf(`{"original":{"width":%d,"height":%d},"small":{"width":%d,"height":%d}}`,
 			fimg.Bounds().Dx(), fimg.Bounds().Dy(),
 			timg.Bounds().Dx(), timg.Bounds().Dy())
@@ -134,6 +138,7 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
+		util.Debugf("[%s] Generate metadata: %v", salt, time.Since(start))
 
 		// 4. Save to DB
 		result, err := s.DB().ExecContext(r.Context(), `
@@ -149,6 +154,7 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
+		util.Debugf("[%s] Save to DB: %v", salt, time.Since(start))
 
 		full, err := os.Create(fmt.Sprintf("%s/full-%s.jpg", dir, media.Salt))
 		if err != nil {
@@ -169,6 +175,7 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
+		util.Debugf("[%s] Save full: %v", salt, time.Since(start))
 
 		thumb, err := os.Create(fmt.Sprintf("%s/thumb-%s.jpg", dir, media.Salt))
 		if err != nil {
@@ -189,6 +196,7 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
+		util.Debugf("[%s] Save thumb: %v", salt, time.Since(start))
 		media.Id = uint64(mid)
 		media.CreatedAt = now
 		media.Path = media.DiskPath("full")
@@ -201,6 +209,7 @@ func postMediaHandler(s sparq.Server) http.HandlerFunc {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
+		util.Debugf("[%s] Update DB: %v", salt, time.Since(start))
 
 		w.Header().Add("Content-Type", "application/json")
 		enc := json.NewEncoder(w)

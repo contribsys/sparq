@@ -3,7 +3,6 @@ package clientapi
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -23,6 +22,7 @@ func TestMediaUpload(t *testing.T) {
 	root.PathPrefix("/media/").Handler(http.StripPrefix("/media", http.FileServer(http.FS(os.DirFS(ts.MediaRoot())))))
 
 	t.Run("PostMinimal", func(t *testing.T) {
+		// util.LogDebug = true
 		buf, wr, err := web.MultipartTestForm("file", "fixtures/cat.png", map[string]string{
 			"description": "nice kitty",
 			"focus":       "0.5,0.5",
@@ -40,7 +40,7 @@ func TestMediaUpload(t *testing.T) {
 
 		assert.Equal(t, 200, w.Code)
 		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
-		fmt.Println(w.Body.String())
+		// fmt.Println(w.Body.String())
 
 		// verify the JSON response
 		var testy map[string]interface{}

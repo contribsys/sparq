@@ -29,7 +29,7 @@ func BuildWeb(s *Service) *http.Server {
 
 	ht := &http.Server{
 		Addr:        s.Binding,
-		ReadTimeout: 5 * time.Second,
+		ReadTimeout: 10 * time.Second,
 
 		// this timeout affects streaming sockets,
 		// will need to reconnect every 5 minutes

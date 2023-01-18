@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -185,6 +186,7 @@ func PostStatusHandler(svr sparq.Server) http.HandlerFunc {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
+		fmt.Printf("Created toot: %s\n", post.URI)
 	}
 }
 
@@ -219,7 +221,7 @@ func saveStatus(svr sparq.Server, r *http.Request, status *Status, medias []stri
 	sid := model.Snowflakes.NextSID()
 	p := &model.Toot{
 		Sid:        sid,
-		URI:        fmt.Sprintf("https://%s/@%s/statuses/%s", svr.Hostname(), "admin", sid),
+		URI:        fmt.Sprintf("https://%s/@%s/%s", svr.Hostname(), "admin", sid),
 		AuthorID:   status.AuthorID,
 		Summary:    status.Summary,
 		Content:    status.Content,
@@ -286,7 +288,7 @@ func saveTags(ctx context.Context, tx *sql.Tx, p *model.Toot) error {
 	tags := extractTags(p.Content)
 	for _, tag := range tags {
 		fmt.Printf("Saving tag for %s: %s\n", p.Sid, tag)
-		_, err := tx.ExecContext(ctx, `insert into toot_tags (sid, tag) values (?, ?)`, p.Sid, tag)
+		_, err := tx.ExecContext(ctx, `insert into toot_tags (sid, tag) values (?, ?)`, p.Sid, strings.ToLower(tag))
 		if err != nil {
 			return err
 		}
@@ -329,6 +331,18 @@ func TootMap(db *sqlx.DB, sid string) (map[string]interface{}, error) {
 	attrs["visibility"] = model.FromVis(model.PostVisibility(attrs["viz"].(int64)))
 	delete(attrs, "viz")
 
+	medias, err := fetchTootMedias(db, sid)
+	if err != nil {
+		return nil, err
+	}
+	attrs["media_attachments"] = medias
+
+	tags, err := fetchTootTags(attrs["content"].(string))
+	if err != nil {
+		return nil, err
+	}
+	attrs["tags"] = tags
+
 	if attrs["app_name"] != nil {
 		attrs["application"] = map[string]any{
 			"name":    attrs["app_name"],
@@ -340,4 +354,34 @@ func TootMap(db *sqlx.DB, sid string) (map[string]interface{}, error) {
 		attrs["application"] = nil
 	}
 	return attrs, nil
+}
+
+func fetchTootTags(content string) ([]map[string]any, error) {
+	tags := extractTags(content)
+	results := []map[string]any{}
+	for _, tag := range tags {
+		tagm := map[string]any{
+			"name": tag,
+		}
+		results = append(results, tagm)
+	}
+	return results, nil
+}
+
+func fetchTootMedias(db *sqlx.DB, sid string) ([]map[string]any, error) {
+	results := make([]map[string]any, 0)
+	media := `select tm.* from toot_medias tm where tm.sid = ?`
+	rows, err := db.Queryx(media, sid)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		media := model.TootMedia{}
+		err := rows.StructScan(&media)
+		if err != nil {
+			return nil, errors.Wrap(err, "Toot media query")
+		}
+		results = append(results, toAttachmentMap(&media))
+	}
+	return results, nil
 }

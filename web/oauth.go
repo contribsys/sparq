@@ -86,7 +86,7 @@ func (scs *SqliteOauthStore) RemoveByRefresh(ctx context.Context, refresh string
 	return wrap(scs.DB.ExecContext(ctx, "delete from oauth_tokens where refresh = ?", refresh))
 }
 func (scs *SqliteOauthStore) getBy(ctx context.Context, name, value string) (oauth2.TokenInfo, error) {
-	fmt.Printf("get %s %s\n", name, value)
+	util.Debugf("get %s %s\n", name, value)
 	var token model.OauthToken
 	err := scs.DB.QueryRowxContext(ctx, fmt.Sprintf("select * from oauth_tokens where %s = ?", name), value).StructScan(&token)
 	if err != nil {

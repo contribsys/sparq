@@ -118,3 +118,9 @@ func (tm *TootMedia) PublicUri(variant string) string {
 	c := tm.CreatedAt
 	return fmt.Sprintf("https://%s/media/%d/%d/%d/%s-%s.jpg", db.InstanceHostname, c.Year(), c.Month(), c.Day(), variant, tm.Salt)
 }
+
+type TootTag struct {
+	Sid       string
+	Name      string
+	CreatedAt time.Time
+}
