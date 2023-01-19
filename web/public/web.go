@@ -33,7 +33,7 @@ func AddPublicEndpoints(s sparq.Server, root *mux.Router) {
 	root.HandleFunc("/users/{nick:[a-z0-9]{4,20}}", getUser(s))
 	root.HandleFunc("/@{nick:[a-z0-9]{4,20}}/{id:[A-Z0-9]+}", showStatusHandler(s))
 	root.HandleFunc("/@{nick:[a-z0-9]{4,20}}", getUser(s))
-	root.Methods("POST").Path("/home").Handler(clientapi.PostStatusHandler(s))
+	root.Methods("POST").Path("/home").Handler(clientapi.PostTootHandler(s))
 	root.HandleFunc("/home", web.RequireLogin(homeHandler))
 	root.HandleFunc("/", indexHandler)
 	root.HandleFunc("/login", loginHandler(s))

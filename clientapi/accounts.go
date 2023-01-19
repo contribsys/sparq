@@ -103,15 +103,16 @@ var (
 `
 )
 
-func getAccountStatuses(s sparq.Server) http.HandlerFunc {
+// TODO
+func getAccountToots(s sparq.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		sfid := mux.Vars(r)["sfid"]
 		rows, err := s.DB().Queryx(`
-			select posts.* from posts
+			select toots.* from toots
 			inner join actors on posts.authorid = actors.id
 			inner join accounts on accounts.id = actors.userid
 			where users.sfid = ?
-			order by posts.uri DESC
+			order by toots.sid DESC
 			limit 50
 			`, sfid)
 		if err == sql.ErrNoRows {

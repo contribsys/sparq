@@ -38,7 +38,7 @@ type Poll struct {
 	O5             string
 	O6             string
 }
-type Status struct {
+type Toot struct {
 	AuthorID           string
 	Content            string
 	MediaIds           []string
@@ -52,7 +52,7 @@ type Status struct {
 	*Poll
 }
 
-func getStatusHandler(svr sparq.Server) http.HandlerFunc {
+func getTootHandler(svr sparq.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "GET" {
 			httpError(w, errors.New("GET only"), http.StatusBadRequest)
@@ -79,7 +79,7 @@ func getStatusHandler(svr sparq.Server) http.HandlerFunc {
 	}
 }
 
-func PostStatusHandler(svr sparq.Server) http.HandlerFunc {
+func PostTootHandler(svr sparq.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			httpError(w, errors.New("POST only"), http.StatusBadRequest)
@@ -99,7 +99,7 @@ func PostStatusHandler(svr sparq.Server) http.HandlerFunc {
 		}
 		fmt.Printf("%s %+v\n", aid, r.Form)
 
-		status := &Status{
+		toot := &Toot{
 			AuthorID:     aid,
 			Content:      r.Form.Get("status"),
 			Sensitive:    r.Form.Get("sensitive") == "true",
@@ -110,10 +110,10 @@ func PostStatusHandler(svr sparq.Server) http.HandlerFunc {
 		}
 		rto := r.Form.Get("in_reply_to_id")
 		if rto != "" {
-			status.InReplyTo = &rto
+			toot.InReplyTo = &rto
 		}
 		medias := r.Form["media_ids[]"]
-		if status.Content == "" && len(medias) == 0 {
+		if toot.Content == "" && len(medias) == 0 {
 			httpError(w, errors.New("Please enter a message"), 400)
 			return
 		}
@@ -151,7 +151,7 @@ func PostStatusHandler(svr sparq.Server) http.HandlerFunc {
 			if len(opts) > 5 {
 				p.O6 = opts[5]
 			}
-			status.Poll = p
+			toot.Poll = p
 		}
 
 		// verify we're not getting a duplicate submission
@@ -161,13 +161,13 @@ func PostStatusHandler(svr sparq.Server) http.HandlerFunc {
 		defer dupeMu.Unlock()
 		_, ok := dupeDetector[ikey]
 		if ok {
-			httpError(w, errors.New("Duplicate status, ignoring"), 401)
+			httpError(w, errors.New("Duplicate toot, ignoring"), 401)
 			return
 		}
 		dupeDetector[ikey] = time.Now()
 		defer dupeCleaner()
 
-		post, err := saveStatus(svr, r, status, medias)
+		post, err := saveToot(svr, r, toot, medias)
 		if err != nil {
 			httpError(w, err, http.StatusInternalServerError)
 			return
@@ -217,16 +217,16 @@ func cleanDupeMap() {
 	}
 }
 
-func saveStatus(svr sparq.Server, r *http.Request, status *Status, medias []string) (*model.Toot, error) {
+func saveToot(svr sparq.Server, r *http.Request, toot *Toot, medias []string) (*model.Toot, error) {
 	sid := model.Snowflakes.NextSID()
 	p := &model.Toot{
 		Sid:        sid,
 		URI:        fmt.Sprintf("https://%s/@%s/%s", svr.Hostname(), "admin", sid),
-		AuthorID:   status.AuthorID,
-		Summary:    status.Summary,
-		Content:    status.Content,
-		Visibility: model.ToVis(status.Visibility),
-		InReplyTo:  status.InReplyTo,
+		AuthorID:   toot.AuthorID,
+		Summary:    toot.Summary,
+		Content:    toot.Content,
+		Visibility: model.ToVis(toot.Visibility),
+		InReplyTo:  toot.InReplyTo,
 		CreatedAt:  time.Now(),
 	}
 	x := web.Ctx(r).ClientApp()
@@ -237,8 +237,8 @@ func saveStatus(svr sparq.Server, r *http.Request, status *Status, medias []stri
 	if err != nil {
 		return nil, err
 	}
-	if status.Poll != nil {
-		po := status.Poll
+	if toot.Poll != nil {
+		po := toot.Poll
 		res, err := tx.ExecContext(r.Context(), `
 			insert into polls (expires_in, multiple, hide, o1, o2, o3, o4, o5, o6) values (?, ?, ?, ?, ?, ?, ?)`,
 			po.ExpiresIn, po.MultipleChoice, po.HideTotals,

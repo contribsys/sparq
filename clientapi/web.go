@@ -17,8 +17,8 @@ var (
 func AddPublicEndpoints(s sparq.Server, mux *mux.Router) {
 	mux.HandleFunc("/media", postMediaHandler(s))
 	mux.HandleFunc("/media/{id:[0-9]+}", getMediaAttachmentHandler(s))
-	mux.HandleFunc("/statuses", PostStatusHandler(s))
-	mux.HandleFunc("/statuses/{id}", getStatusHandler(s))
+	mux.HandleFunc("/statuses", PostTootHandler(s))
+	mux.HandleFunc("/statuses/{id}", getTootHandler(s))
 	mux.HandleFunc("/custom_emojis", emptyHandler(s))
 	mux.HandleFunc("/lists", emptyHandler(s))
 	mux.HandleFunc("/filters", emptyHandler(s))
@@ -31,7 +31,7 @@ func AddPublicEndpoints(s sparq.Server, mux *mux.Router) {
 	mux.HandleFunc("/apps", appsHandler(s))
 	mux.HandleFunc("/accounts/verify_credentials", verifyCredentialsHandler(s))
 	mux.HandleFunc("/accounts/{sfid:[0-9]+}", getAccount(s))
-	mux.HandleFunc("/accounts/{sfid:[0-9]+}/statuses", getAccountStatuses(s))
+	mux.HandleFunc("/accounts/{sfid:[0-9]+}/statuses", getAccountToots(s))
 
 	st := NewStreamer(s)
 	r := mux.PathPrefix("/streaming").Subrouter()
