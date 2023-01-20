@@ -1,88 +1,13 @@
 package clientapi
 
 import (
-	"fmt"
 	"net/http"
 
-	sq "github.com/Masterminds/squirrel"
 	"github.com/contribsys/sparq"
 	"github.com/contribsys/sparq/model"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
-
-type TimelineQuery struct {
-	// these parameters match Mastodon's API parameters
-	min_id     string
-	max_id     string
-	since_id   string
-	limit      uint64
-	list_id    uint64
-	local      bool
-	remote     bool
-	only_media bool
-
-	db *sqlx.DB
-}
-
-func TQ(db *sqlx.DB) *TimelineQuery {
-	return &TimelineQuery{
-		limit: 20,
-		db:    db,
-	}
-}
-
-func (tq *TimelineQuery) Execute() ([]*model.Toot, error) {
-	if tq.limit > 50 {
-		tq.limit = 50
-	}
-	base := sq.Select(`t.*`).From("toots t").
-		// JoinClause("LEFT OUTER JOIN oauth_clients oc on t.appid = oc.id").
-		Limit(tq.limit)
-	if tq.min_id != "" && tq.max_id != "" {
-		base = base.Where("t.sid between ? and ?", tq.min_id)
-	} else if tq.min_id != "" {
-		base = base.Where("t.sid > ?", tq.min_id)
-	} else if tq.max_id != "" {
-		base = base.Where("t.sid <= ?", tq.max_id)
-	} else if tq.since_id != "" {
-		base = base.Where("t.sid > ?", tq.since_id)
-	}
-	if tq.only_media {
-		base = base.Join("toot_medias tm on t.sid = tm.sid")
-	}
-	if tq.list_id != 0 {
-		// TODO
-	}
-	if tq.local || tq.remote {
-		if tq.local {
-			base = base.Where("t.authorId is not null")
-		} else {
-			base = base.Where("t.authorId is null")
-		}
-	}
-
-	base = base.OrderBy("t.CreatedAt DESC")
-	sql, args, err := base.ToSql()
-	fmt.Println(sql)
-	if err != nil {
-		return nil, errors.Wrap(err, "Invalid timeline query")
-	}
-	results := make([]*model.Toot, 0)
-	rows, err := tq.db.Queryx(sql, args...)
-	if err != nil {
-		return nil, errors.Wrap(err, "Bad timeline query")
-	}
-	for rows.Next() {
-		toot := model.Toot{}
-		err := rows.StructScan(&toot)
-		if err != nil {
-			return nil, errors.Wrap(err, "Toot query")
-		}
-		results = append(results, &toot)
-	}
-	return results, nil
-}
 
 func listHandler(svr sparq.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

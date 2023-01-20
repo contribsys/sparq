@@ -13,13 +13,13 @@ type Toot struct {
 	AccountId          uint64
 	ActorId            uint64
 	BoostOfId          *string
-	InReplyTo          *string        `json:"in_reply_to_id,omitempty"`
-	InReplyToAccountId *uint64        `json:"in_reply_to_account_id,omitempty"`
-	Summary            string         `json:"spoiler_text"`
-	Content            string         `json:"content"`
-	Lang               string         `json:"language"`
-	Visibility         PostVisibility `json:"visibility"`
-	CreatedAt          time.Time      `json:"created_at"`
+	InReplyTo          *string `json:"in_reply_to_id,omitempty"`
+	InReplyToAccountId *uint64 `json:"in_reply_to_account_id,omitempty"`
+	Summary            string  `json:"spoiler_text"`
+	Content            string  `json:"content"`
+	Lang               string  `json:"language"`
+	Visibility         PostVisibility
+	CreatedAt          time.Time `json:"created_at"`
 	AuthorID           string
 	CollectionId       *uint64
 	PollID             *uint64
@@ -62,6 +62,10 @@ func ToVis(word string) PostVisibility {
 }
 func FromVis(value PostVisibility) string {
 	return Visibilities[value]
+}
+
+func (t *Toot) Viz() string {
+	return FromVis(t.Visibility)
 }
 
 /*

@@ -38,10 +38,24 @@ func AddPublicEndpoints(s sparq.Server, root *mux.Router) {
 	root.HandleFunc("/", indexHandler)
 	root.HandleFunc("/login", loginHandler(s))
 	root.HandleFunc("/logout", logoutHandler(s))
-	// mux.HandleFunc("/public/local", localHandler)
+	root.HandleFunc("/public/local", localHandler(s))
 	// mux.HandleFunc("/public", publicHandler)
 	// mux.HandleFunc("/auth/sign_up", signupHandler)
 	// mux.HandleFunc("/auth/sign_in", signinHandler)
+}
+
+func localHandler(svr sparq.Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tq := model.TQ(svr.DB())
+		tq.Local = true
+		tq.Visibility = model.VisPublic
+		result, err := tq.Execute()
+		if err != nil {
+			httpError(w, err, http.StatusInternalServerError)
+			return
+		}
+		web.Render(w, r, "public/timeline", result)
+	}
 }
 
 func showStatusHandler(svr sparq.Server) http.HandlerFunc {
