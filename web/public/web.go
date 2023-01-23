@@ -54,7 +54,7 @@ func localHandler(svr sparq.Server) http.HandlerFunc {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
-		web.Render(w, r, "public/timeline", result)
+		web.Render(w, r, "public/local", result)
 	}
 }
 

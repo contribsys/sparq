@@ -123,8 +123,16 @@ func (tm *TootMedia) PublicUri(variant string) string {
 	return fmt.Sprintf("https://%s/media/%d/%d/%d/%s-%s.jpg", db.InstanceHostname, c.Year(), c.Month(), c.Day(), variant, tm.Salt)
 }
 
+func (tm *TootMedia) ThumbUri() string {
+	return tm.PublicUri("thumb")
+}
+
+func (tm *TootMedia) FullUri() string {
+	return tm.PublicUri("full")
+}
+
 type TootTag struct {
 	Sid       string
-	Name      string
+	Tag       string
 	CreatedAt time.Time
 }

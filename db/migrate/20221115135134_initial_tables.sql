@@ -70,19 +70,19 @@ create table if not exists `account_securities` (
   foreign key (AccountId) references accounts(id) on delete cascade 
 );
 create table if not exists `collections` (
-  Id integer primary key,
-  AccountId integer not null,
-  Title string not null,
-  Description string not null,
-  Visibility integer not null default 0,
+  id integer primary key,
+  accountid integer not null,
+  title string not null,
+  description string not null,
+  visibility integer not null default 0,
   foreign key (AccountId) references accounts(id) on delete cascade 
 );
 create table if not exists `actors` (
-  Id integer not null primary key,
-  AccountId integer, -- if this is a local user, this will be non-null
-  Url string, -- "https://instance.domain/@username"
-  Inbox string, -- "https://instance.domain/@username/inbox"
-  SharedInbox string, -- "https://instance.domain/@username"
+  id integer not null primary key,
+  accountid integer, -- if this is a local user, this will be non-null
+  url string, -- "https://instance.domain/@username"
+  inbox string, -- "https://instance.domain/@username/inbox"
+  sharedinbox string, -- "https://instance.domain/@username"
   foreign key (accountid) references accounts(id) on delete cascade
 );
 
@@ -133,9 +133,9 @@ create table if not exists `toot_medias` (
   foreign key (accountid) references accounts(id) on delete cascade
 );
 create table if not exists `toot_tags` (
-  Sid string not null,
-  Tag string not null,
-  CreatedAt timestamp not null default current_timestamp,
+  sid string not null,
+  tag string not null,
+  createdat timestamp not null default current_timestamp,
   foreign key (sid) references toots(sid) on delete cascade
 );
 create index idx_toot_tags_tag on toot_tags(tag);
