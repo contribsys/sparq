@@ -9,7 +9,7 @@ import (
 
 type Toot struct {
 	Sid                string `json:"id"`
-	URI                string `json:"uri"`
+	Uri                string `json:"uri"`
 	AccountId          uint64
 	ActorId            uint64
 	BoostOfId          *string
@@ -20,10 +20,10 @@ type Toot struct {
 	Lang               string  `json:"language"`
 	Visibility         PostVisibility
 	CreatedAt          time.Time `json:"created_at"`
-	AuthorID           string
+	AuthorId           string
 	CollectionId       *uint64
-	PollID             *uint64
-	AppID              *uint64
+	PollId             *uint64
+	AppId              *uint64
 	LastEditAt         *time.Time
 	UpdatedAt          time.Time
 	DeletedAt          *time.Time

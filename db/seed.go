@@ -12,7 +12,7 @@ import (
 
 var (
 	newUserInsert = `
-		insert into accounts (Id, Sfid, Nick, Email, FullName, RoleMask)
+		insert into accounts (Id, Sid, Nick, Email, FullName, RoleMask)
 		values (?, ?, ?, ?, ?, ?)`
 	newSecurityInsert = `
 		insert into account_securities (AccountId, PasswordHash, PublicKey, PrivateKey)
@@ -20,7 +20,7 @@ var (
 	newProfileInsert = `
 		insert into account_profiles (AccountId) values (?)`
 	newTootInsert = `
-		insert into toots (SID, URI, AuthorId, ActorId, InReplyTo, InReplyToAccountId, Summary, Content)
+		insert into toots (Sid, Uri, AuthorId, ActorId, InReplyTo, InReplyToAccountId, Summary, Content)
 		values (?, ?, ?, ?, ?, ?, ?, ?)`
 )
 
@@ -85,10 +85,6 @@ func createAdmin(dbx *sqlx.DB) error {
 		_, err = dbx.Exec("insert into account_fields (accountid, name, value) values (1, 'Wu Tang', 'Forever')")
 		if err != nil {
 			return errors.Wrap(err, "account fields")
-		}
-		_, err = dbx.Exec("insert into actors (AccountId) values (?)", 1)
-		if err != nil {
-			return errors.Wrap(err, "new actor")
 		}
 	}
 	return nil

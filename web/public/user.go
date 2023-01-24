@@ -19,8 +19,8 @@ func getUser(s sparq.Server) http.HandlerFunc {
 		err := s.DB().QueryRowx(`
 			select * from accounts	
 			inner join account_securities
-			on accounts.id = account_securities.accountid
-			where accounts.nick = ?`, nick).MapScan(userdata)
+			on accounts.Id = account_securities.AccountId
+			where accounts.Nick = ?`, nick).MapScan(userdata)
 		if err == sql.ErrNoRows {
 			http.Error(w, "Not found", http.StatusNotFound)
 			return
@@ -36,9 +36,9 @@ func getUser(s sparq.Server) http.HandlerFunc {
 			url := "https://" + db.InstanceHostname + "/users/" + nick
 			me := activitystreams.NewPerson(url)
 			me.URL = url
-			me.Name = userdata["fullname"].(string)
-			me.PreferredUsername = userdata["nick"].(string)
-			me.AddPubKey(string(userdata["publickey"].([]uint8)))
+			me.Name = userdata["FullName"].(string)
+			me.PreferredUsername = userdata["Nick"].(string)
+			me.AddPubKey(string(userdata["PublicKey"].([]uint8)))
 
 			data, err := json.Marshal(me)
 			if err != nil {

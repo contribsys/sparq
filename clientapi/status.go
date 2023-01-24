@@ -39,7 +39,7 @@ type Poll struct {
 	O6             string
 }
 type Toot struct {
-	AuthorID           string
+	AuthorId           uint64
 	Content            string
 	MediaIds           []string
 	InReplyTo          *string
@@ -92,15 +92,19 @@ func PostTootHandler(svr sparq.Server) http.HandlerFunc {
 		}
 
 		ctx := web.Ctx(r)
-		aid := ctx.CurrentUserID
-		if aid == web.Anonymous {
+		if ctx.CurrentUserID == web.Anonymous {
 			httpError(w, errors.New("Unauthorized"), http.StatusUnauthorized)
 			return
 		}
-		fmt.Printf("%s %+v\n", aid, r.Form)
+		aid, err := strconv.ParseUint(ctx.CurrentUserID, 10, 64)
+		if err != nil {
+			httpError(w, err, 503)
+			return
+		}
+		fmt.Printf("%d %+v\n", aid, r.Form)
 
 		toot := &Toot{
-			AuthorID:     aid,
+			AuthorId:     aid,
 			Content:      r.Form.Get("status"),
 			Sensitive:    r.Form.Get("sensitive") == "true",
 			Summary:      r.Form.Get("spoiler_text"),
@@ -186,7 +190,7 @@ func PostTootHandler(svr sparq.Server) http.HandlerFunc {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
-		fmt.Printf("Created toot: %s\n", post.URI)
+		fmt.Printf("Created toot: %s\n", post.Uri)
 	}
 }
 
@@ -221,8 +225,8 @@ func saveToot(svr sparq.Server, r *http.Request, toot *Toot, medias []string) (*
 	sid := model.Snowflakes.NextSID()
 	p := &model.Toot{
 		Sid:        sid,
-		URI:        fmt.Sprintf("https://%s/@%s/%s", svr.Hostname(), "admin", sid),
-		AuthorID:   toot.AuthorID,
+		Uri:        fmt.Sprintf("https://%s/@%s/%s", svr.Hostname(), "admin", sid),
+		AccountId:  toot.AuthorId,
 		Summary:    toot.Summary,
 		Content:    toot.Content,
 		Visibility: model.ToVis(toot.Visibility),
@@ -231,7 +235,7 @@ func saveToot(svr sparq.Server, r *http.Request, toot *Toot, medias []string) (*
 	}
 	x := web.Ctx(r).ClientApp()
 	if x != nil {
-		p.AppID = &x.Id
+		p.AppId = &x.Id
 	}
 	tx, err := svr.DB().Begin()
 	if err != nil {
@@ -249,12 +253,12 @@ func saveToot(svr sparq.Server, r *http.Request, toot *Toot, medias []string) (*
 		}
 		x, _ := res.LastInsertId()
 		y := uint64(x)
-		p.PollID = &y
+		p.PollId = &y
 	}
 	_, err = tx.ExecContext(r.Context(), `
-	  insert into toots (sid, uri, inreplyto, authorid, actorid, pollid, summary, content, lang, visibility, appid) values
+	  insert into toots (Sid, Uri, InReplyTo, AuthorId, ActorId, PollId, Summary, Content, Lang, Visibility, AppId) values
 		(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.Sid, p.URI, p.InReplyTo, p.AuthorID, p.AuthorID, p.PollID, p.Summary, p.Content, p.Lang, p.Visibility, p.AppID)
+		p.Sid, p.Uri, p.InReplyTo, p.AuthorId, p.AuthorId, p.PollId, p.Summary, p.Content, p.Lang, p.Visibility, p.AppId)
 	if err != nil {
 		_ = tx.Rollback()
 		return nil, err

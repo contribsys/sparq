@@ -63,6 +63,7 @@ func OpenDB(opts DatabaseOptions) (*sqlx.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	dbx.MapperFunc(func(s string) string { return s })
 	err = goose.SetDialect("sqlite3")
 	if err != nil {
 		return nil, err

@@ -9,15 +9,15 @@ import (
 )
 
 type OauthClient struct {
-	Id           uint64    `db:"Id"`
-	Name         string    `db:"Name" json:"name"`
-	ClientId     string    `db:"ClientId" json:"client_id"`
-	Secret       string    `db:"Secret" json:"client_secret"`
-	RedirectUris string    `db:"RedirectUris" json:"redirect_uri"`
-	Website      string    `db:"Website" json:"website"`
-	AccountId    uint64    `db:"AccountId"`
-	Scopes       string    `db:"Scopes"`
-	CreatedAt    time.Time `db:"CreatedAt"`
+	Id           uint64
+	Name         string `json:"name"`
+	ClientId     string `json:"client_id"`
+	Secret       string `json:"client_secret"`
+	RedirectUris string `json:"redirect_uri"`
+	Website      string `json:"website"`
+	AccountId    uint64
+	Scopes       string
+	CreatedAt    time.Time
 }
 
 func (x *OauthClient) GetID() string {
@@ -34,22 +34,22 @@ func (x *OauthClient) GetUserID() string {
 }
 
 type OauthToken struct {
-	ClientId            string        `db:"ClientId"`
-	AccountId           uint64        `db:"AccountId"`
-	RedirectUri         string        `db:"RedirectUri"`
-	Scope               string        `db:"Scope"`
-	Code                string        `db:"Code"`
-	CodeChallenge       string        `db:"CodeChallenge"`
-	CodeChallengeMethod string        `db:"CodeChallengeMethod"`
-	CodeCreatedAt       time.Time     `db:"CodeCreatedAt"`
-	CodeExpiresIn       time.Duration `db:"CodeExpiresIn"`
-	Access              string        `db:"Access"`
-	AccessCreatedAt     time.Time     `db:"AccessCreatedAt"`
-	AccessExpiresIn     time.Duration `db:"AccessExpiresIn"`
-	Refresh             string        `db:"Refresh"`
-	RefreshCreatedAt    time.Time     `db:"RefreshCreatedAt"`
-	RefreshExpiresIn    time.Duration `db:"RefreshExpiresIn"`
-	CreatedAt           time.Time     `db:"CreatedAt"`
+	ClientId            string
+	AccountId           uint64
+	RedirectUri         string
+	Scope               string
+	Code                string
+	CodeChallenge       string
+	CodeChallengeMethod string
+	CodeCreatedAt       time.Time
+	CodeExpiresIn       time.Duration
+	Access              string
+	AccessCreatedAt     time.Time
+	AccessExpiresIn     time.Duration
+	Refresh             string
+	RefreshCreatedAt    time.Time
+	RefreshExpiresIn    time.Duration
+	CreatedAt           time.Time
 }
 
 func (ot *OauthToken) New() oauth2.TokenInfo {
@@ -180,15 +180,4 @@ func (ot *OauthToken) GetRefreshExpiresIn() time.Duration {
 
 func (ot *OauthToken) SetRefreshExpiresIn(s time.Duration) {
 	ot.RefreshExpiresIn = s
-}
-
-type OauthGrant struct {
-	ClientId    string
-	Token       string
-	ExpiresIn   int64
-	Scopes      string
-	UserId      int64
-	RedirectUri string
-	RevokedAt   time.Time
-	CreatedAt   time.Time
 }

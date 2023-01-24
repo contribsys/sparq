@@ -1,19 +1,21 @@
 -- +goose Up
+PRAGMA foreign_keys = ON;
+
 create table if not exists `accounts` (
-  id         integer primary key,
-  sfid       string not null, -- snowflake id
-  fullname   string not null,
-  nick       string not null,
-  email      string not null,
-  rolemask   integer not null default 1,
-  visibility integer not null default 0,
-  createdat  timestamp not null default current_timestamp,
-  updatedat  timestamp not null default current_timestamp,
-  unique (sfid),
-  unique (nick)
+  Id         integer primary key,
+  Sid        string not null,
+  FullName   string not null,
+  Nick       string not null,
+  Email      string not null,
+  RoleMask   integer not null default 1,
+  Visibility integer not null default 0,
+  CreatedAt  timestamp not null default current_timestamp,
+  UpdatedAt  timestamp not null default current_timestamp,
+  unique (Sid),
+  unique (Nick)
 );
 create table if not exists `oauth_clients` (
-  Id integer primary key,
+  Id             integer primary key,
   ClientId       string not null,
   Name           string not null,
   Secret         string not null,
@@ -23,7 +25,7 @@ create table if not exists `oauth_clients` (
   Scopes         string not null default "read",
   CreatedAt      timestamp not null default current_timestamp,
   unique (ClientId),
-  foreign key (AccountId) references accounts(id) on delete cascade 
+  foreign key (AccountId) references accounts(Id) on delete cascade 
 );
 create table if not exists `oauth_tokens` (
 	ClientId            string not null,
@@ -32,13 +34,13 @@ create table if not exists `oauth_tokens` (
 	Scope               string not null, 
 	Code                string not null, 
 	CodeChallenge       string,
-	CodeCreatedAt        timestamp,
+	CodeCreatedAt       timestamp,
 	CodeExpiresIn       integer,
 	Access              string, 
-	AccessCreatedAt      timestamp,
+	AccessCreatedAt     timestamp,
 	AccessExpiresIn     integer,
 	Refresh             string, 
-	RefreshCreatedAt     timestamp,
+	RefreshCreatedAt    timestamp,
 	RefreshExpiresIn    integer,
   CreatedAt           timestamp not null default current_timestamp,
   foreign key (AccountId) references accounts(id) on delete cascade 
@@ -49,103 +51,80 @@ create index idx_oauth_tokens_access on oauth_tokens(access);
 create index idx_oauth_tokens_refresh on oauth_tokens(refresh);
 
 create table if not exists `account_profiles` (
-	accountid integer not null,
-	note      string not null default "",
-	avatar    string not null default "/static/default_avatar.png",
-	header    string not null default "/static/default_header.jpg",
+	AccountId integer not null,
+	Note      string not null default "",
+	Avatar    string not null default "/static/default_avatar.png",
+	Header    string not null default "/static/default_header.jpg",
   foreign key (accountid) references accounts(id) on delete cascade 
 );
 create table if not exists `account_fields` (
-  accountid    integer not null,
-  name         string not null,
-  value        string not null,
-  verifiedat  timestamp,
+  AccountId    integer not null,
+  Name         string not null,
+  Value        string not null,
+  VerifiedAt  timestamp,
   foreign key (accountid) references accounts(id) on delete cascade 
 );
 create table if not exists `account_securities` (
-  accountid     integer primary key,
-  passwordhash  blob not null,
-  publickey     string not null,
-  privatekey    string not null,
+  AccountId     integer primary key,
+  PasswordHash  blob not null,
+  PublicKey     string not null,
+  PrivateKey    string not null,
   foreign key (AccountId) references accounts(id) on delete cascade 
 );
-create table if not exists `collections` (
-  id integer primary key,
-  accountid integer not null,
-  title string not null,
-  description string not null,
-  visibility integer not null default 0,
-  foreign key (AccountId) references accounts(id) on delete cascade 
-);
-create table if not exists `actors` (
-  id integer not null primary key,
-  accountid integer, -- if this is a local user, this will be non-null
-  url string, -- "https://instance.domain/@username"
-  inbox string, -- "https://instance.domain/@username/inbox"
-  sharedinbox string, -- "https://instance.domain/@username"
-  foreign key (accountid) references accounts(id) on delete cascade
-);
-
 create table if not exists `toots` (
-  sid string not null primary key,
-  uri string not null,
-  actorid integer not null,
-  authorid integer,
-  inreplytoaccountid integer,
-  inreplyto string,
-  boostofid string,
-  summary string,
-  content string not null,
-  lang string default 'en',
-  visibility integer not null default 0,
-  collectionid integer,
-  appid integer,
-  pollid integer,
-  lasteditat timestamp,
-  deletedat timestamp,
-  createdat timestamp not null default current_timestamp,
-  updatedat timestamp not null default current_timestamp,
-  unique (uri),
-  unique (sid),
+  Sid string not null primary key,
+  Uri string not null,
+  ActorId integer not null,
+  AuthorId integer,
+  InReplyToAccountId integer,
+  InReplyTo string,
+  BoostOfId string,
+  Summary string,
+  Content string not null,
+  Lang string default 'en',
+  Visibility integer not null default 0,
+  AppId integer,
+  PollId integer,
+  LastEditAt timestamp,
+  DeletedAt timestamp,
+  CreatedAt timestamp not null default current_timestamp,
+  UpdatedAt timestamp not null default current_timestamp,
+  unique (Uri),
+  unique (Sid),
   foreign key (AppId) references oauth_clients(Id) on delete set null,
-  foreign key (ActorId) references Actors(Id) on delete cascade,
   foreign key (AuthorId) references Accounts(Id) on delete cascade,
   foreign key (InReplyToAccountId) references Accounts(Id) on delete cascade,
   foreign key (InReplyTo) references Toots(uri) on delete cascade,
-  foreign key (BoostOfId) references Toots(id) on delete cascade,
-  foreign key (CollectionId) references collections(id) on delete set null
+  foreign key (BoostOfId) references Toots(id) on delete cascade
 );
-
 create table if not exists `toot_medias` (
-  id integer primary key,
-  sid string not null default "", -- clients upload media before toot is created
-  accountid integer not null,
-  salt integer not null,
-  mimetype string not null default "image/jpeg",
-  path string not null default "/static/undefined.jpg",
-  thumbmimetype string not null default "image/jpeg",
-  thumbpath string not null default "/static/undefined.jpg",
-  meta string default "{}" not null,
-  description string default "",
-  blurhash string default "" not null,
-  createdat timestamp not null default current_timestamp,
-  foreign key (sid) references toots(sid) on delete cascade
-  foreign key (accountid) references accounts(id) on delete cascade
+  Id integer primary key,
+  Sid string not null default "", -- clients upload media before toot is created
+  AccountId integer not null,
+  Salt integer not null,
+  MimeType string not null default "image/jpeg",
+  Path string not null default "/static/undefined.jpg",
+  ThumbMimeType string not null default "image/jpeg",
+  ThumbPath string not null default "/static/undefined.jpg",
+  Meta string default "{}" not null,
+  Description string default "",
+  Blurhash string default "" not null,
+  CreatedAt timestamp not null default current_timestamp,
+  foreign key (Sid) references toots(Sid) on delete cascade
+  foreign key (AccountId) references accounts(Id) on delete cascade
 );
 create table if not exists `toot_tags` (
-  sid string not null,
-  tag string not null,
-  createdat timestamp not null default current_timestamp,
-  foreign key (sid) references toots(sid) on delete cascade
+  Sid string not null,
+  Tag string not null,
+  CreatedAt timestamp not null default current_timestamp,
+  foreign key (Sid) references toots(Sid) on delete cascade
 );
-create index idx_toot_tags_tag on toot_tags(tag);
+create index idx_toot_tags_tag on toot_tags(Tag);
 
 -- +goose Down
 drop table toot_medias;
 drop table toot_tags;
 drop table toots;
-drop table actors;
-drop table collections;
 drop table account_securities;
 drop table account_fields;
 drop table oauth_clients;

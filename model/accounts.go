@@ -28,7 +28,7 @@ const (
 
 type Account struct {
 	Id         int64
-	Sfid       string
+	Sid        string
 	FullName   string
 	Nick       string
 	Email      string
