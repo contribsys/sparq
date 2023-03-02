@@ -48,10 +48,6 @@ func (a *Account) Created() string {
 	return util.Thens(*a.CreatedAt)
 }
 
-var (
-	Snowflakes = util.NewSnowflake()
-)
-
 type AccountProfile struct {
 	AccountID uint
 	Note      string
