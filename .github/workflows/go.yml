@@ -14,7 +14,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install Redis
+      run: sudo apt-get install redis-server
 
     - name: Set up Go
       uses: actions/setup-go@v5
